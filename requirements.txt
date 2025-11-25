@@ -1,0 +1,23 @@
+# Core Agent Framework
+openai-agents>=0.1.0
+openai>=1.93.1
+
+# Data Analysis & Validation
+pydantic>=2.11.7
+pandas>=2.0.0
+numpy<2.3.0
+scikit-learn>=1.7.0
+
+# Code Execution
+e2b-code-interpreter>=1.5.2
+
+# UI
+gradio>=5.37.0
+plotly>=6.2.0
+
+# Utilities
+python-dotenv>=1.0.0
+tqdm>=4.66.0
+
+# Async support
+aiofiles>=24.1.0
