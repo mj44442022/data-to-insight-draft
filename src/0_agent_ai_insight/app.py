@@ -38,7 +38,7 @@ from scipy import stats
 from sklearn.linear_model import LinearRegression
 
 # LangChain and LangGraph imports
-from langchain_anthropic import ChatAnthropic
+from langchain_openai import ChatOpenAI
 from langchain_core.messages import HumanMessage, SystemMessage
 from langgraph.graph import StateGraph, END
 
@@ -59,10 +59,10 @@ load_dotenv()
 
 SCOTIABANK_INVESTOR_PRESENTATION_URL = "https://www.scotiabank.com/content/dam/scotiabank/corporate/quarterly-reports/2025/q3/Q325_Investor_Presentation_en.pdf"
 
-# Claude Sonnet 4.5 with temperature=0 for consistency
-llm = ChatAnthropic(
-    model="claude-sonnet-4-5-20250929",
-    api_key=os.getenv("ANTHROPIC_API_KEY"),
+# GPT-4 Turbo with temperature=0 for consistency
+llm = ChatOpenAI(
+    model="gpt-4-turbo-preview",  # or "gpt-4" for more stable version
+    api_key=os.getenv("OPENAI_API_KEY"),
     temperature=0  # Deterministic outputs for business insights
 )
 
@@ -1363,7 +1363,7 @@ with gr.Blocks(
     gr.Markdown("""
     ---
     **About**: This MVP demonstrates research-backed prompt engineering for business intelligence.
-    Built with LangGraph, Claude Sonnet 4.5, and principles from leading AI research papers (2024-2025).
+    Built with LangGraph, GPT-4 Turbo, and principles from leading AI research papers (2024-2025).
 
     **Techniques Applied**: Chain-of-thought reasoning, structured outputs, domain expertise injection,
     few-shot learning, verification steps, emotional stakes, and 8 other research-backed methods.

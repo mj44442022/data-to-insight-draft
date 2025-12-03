@@ -220,7 +220,7 @@ Same terminology and patterns throughout.
 - numpy
 - scipy
 - scikit-learn
-- langchain-anthropic
+- langchain-openai
 - langgraph
 - gradio
 - python-dotenv
@@ -233,13 +233,20 @@ Same terminology and patterns throughout.
 Create or update `.env` file in project root:
 
 ```bash
-# Anthropic API (REQUIRED)
-ANTHROPIC_API_KEY="sk-ant-..."
+# OpenAI API (REQUIRED)
+OPENAI_API_KEY="sk-..."
 
 # LangFuse (optional - for tracing)
 LANGFUSE_SECRET_KEY="..."
 LANGFUSE_PUBLIC_KEY="..."
 LANGFUSE_HOST="https://..."
+
+# Web Search (optional)
+WEB_SEARCH_API_KEY="..."
+
+# Weaviate (optional - not used in MVP)
+WEAVIATE_HTTP_HOST="..."
+WEAVIATE_GRPC_HOST="..."
 
 # E2B API (optional - not used in MVP)
 E2B_API_KEY="..."
@@ -512,9 +519,9 @@ app = workflow.compile()
 ### LLM Configuration
 
 ```python
-llm = ChatAnthropic(
-    model="claude-sonnet-4-5-20250929",
-    api_key=os.getenv("ANTHROPIC_API_KEY"),
+llm = ChatOpenAI(
+    model="gpt-4-turbo-preview",  # or "gpt-4" for more stable version
+    api_key=os.getenv("OPENAI_API_KEY"),
     temperature=0  # Deterministic for business insights
 )
 ```
@@ -667,17 +674,23 @@ For business intelligence, **long, structured prompts win** because:
 
 ## 🐛 Troubleshooting
 
-### Issue: "ANTHROPIC_API_KEY not found"
+### Issue: "OPENAI_API_KEY not found" or "ModuleNotFoundError: No module named 'langchain_openai'"
 
 **Solution:**
 ```bash
-# Check .env file exists in project root
-ls /home/user/data-to-insight-draft/.env
+# 1. Check .env file exists in project root
+ls /home/coder/agent-bootcamp/.env
 
-# Verify ANTHROPIC_API_KEY is set
-cat .env | grep ANTHROPIC
+# 2. Verify OPENAI_API_KEY is set in .env
+cat .env | grep OPENAI
 
-# Run with explicit env file path
+# 3. If missing, add to your .env file:
+echo 'OPENAI_API_KEY="sk-..."' >> .env
+
+# 4. Install langchain-openai if needed:
+pip install langchain-openai
+
+# 5. Run with explicit env file path
 uv run --env-file /path/to/.env gradio app.py
 ```
 
@@ -707,7 +720,7 @@ uv run --env-file /path/to/.env gradio app.py
 ### Issue: "Agent timeout or slow response"
 
 **Solution:**
-- Claude Sonnet 4.5 can take 10-30 seconds for complex analysis
+- GPT-4 Turbo can take 10-30 seconds for complex analysis
 - This is normal - agent is doing deep thinking
 - Check API rate limits if consistently slow
 
@@ -732,7 +745,7 @@ This project is part of the Vector Institute Agent Bootcamp.
 ## 🙏 Acknowledgments
 
 - **Vector Institute** for the Agent Bootcamp program
-- **Anthropic** for Claude Sonnet 4.5 and prompt engineering research
+- **OpenAI** for GPT-4 Turbo and advancing LLM capabilities
 - **LangChain/LangGraph** teams for agent orchestration frameworks
 - **Research papers** that informed the 12 prompt techniques applied
 
@@ -748,7 +761,8 @@ This project is part of the Vector Institute Agent Bootcamp.
 
 ### Tools & Frameworks
 - [LangGraph Documentation](https://langchain-ai.github.io/langgraph/)
-- [Anthropic Prompt Engineering Guide](https://docs.anthropic.com/claude/docs/prompt-engineering)
+- [OpenAI API Documentation](https://platform.openai.com/docs/)
+- [OpenAI Prompt Engineering Guide](https://platform.openai.com/docs/guides/prompt-engineering)
 - [Gradio Documentation](https://www.gradio.app/docs)
 
 ### Banking Resources
