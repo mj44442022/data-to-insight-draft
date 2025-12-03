@@ -23,6 +23,123 @@
 # "The Prompt Report" (arXiv 2406.06608), EmotionPrompt research
 # ============================================================================
 
+# ============================================================================
+# DEPENDENCY CHECKING - Fail fast with helpful error messages
+# ============================================================================
+import sys
+
+def check_dependencies():
+    """Check for required dependencies and provide helpful installation instructions"""
+    missing_deps = []
+    install_commands = []
+
+    # Check standard libraries first (these should always work)
+    try:
+        import os
+        import json
+        from pathlib import Path
+        from datetime import datetime
+        from typing import TypedDict, List, Dict, Any
+        from io import BytesIO
+    except ImportError as e:
+        print(f"❌ CRITICAL: Standard library import failed: {e}")
+        print("This should not happen. Please check your Python installation.")
+        sys.exit(1)
+
+    # Check core data science libraries
+    try:
+        import pandas as pd
+        import numpy as np
+    except ImportError as e:
+        missing_deps.append("pandas and/or numpy")
+        install_commands.append("pip install pandas numpy")
+
+    try:
+        from scipy import stats
+    except ImportError:
+        missing_deps.append("scipy")
+        install_commands.append("pip install scipy")
+
+    try:
+        from sklearn.linear_model import LinearRegression
+    except ImportError:
+        missing_deps.append("scikit-learn")
+        install_commands.append("pip install scikit-learn")
+
+    # Check LangChain dependencies (CRITICAL)
+    try:
+        from langchain_core.messages import HumanMessage, SystemMessage
+    except ImportError:
+        missing_deps.append("langchain-core")
+        install_commands.append("pip install langchain-core")
+
+    try:
+        from langchain_openai import ChatOpenAI
+    except ImportError:
+        missing_deps.append("langchain-openai")
+        install_commands.append("pip install langchain-openai")
+
+    try:
+        from langgraph.graph import StateGraph, END
+    except ImportError:
+        missing_deps.append("langgraph")
+        install_commands.append("pip install langgraph")
+
+    # Check Gradio (CRITICAL for UI)
+    try:
+        import gradio as gr
+    except ImportError:
+        missing_deps.append("gradio")
+        install_commands.append("pip install gradio")
+
+    # Check other utilities
+    try:
+        import requests
+    except ImportError:
+        missing_deps.append("requests")
+        install_commands.append("pip install requests")
+
+    try:
+        from dotenv import load_dotenv
+    except ImportError:
+        missing_deps.append("python-dotenv")
+        install_commands.append("pip install python-dotenv")
+
+    # If any dependencies are missing, show helpful error and exit
+    if missing_deps:
+        print("\n" + "="*80)
+        print("❌ MISSING REQUIRED DEPENDENCIES")
+        print("="*80)
+        print(f"\nThe following packages are required but not installed:")
+        for dep in missing_deps:
+            print(f"  • {dep}")
+
+        print(f"\n📦 QUICK FIX - Run these commands:")
+        print("-" * 80)
+        for cmd in install_commands:
+            print(f"  {cmd}")
+
+        print("\n💡 OR install everything at once:")
+        print("-" * 80)
+        print("  pip install -r requirements.txt")
+        print("\n  (Make sure requirements.txt is in the same directory as app.py)")
+
+        print("\n🔗 Location of requirements.txt:")
+        print(f"  {Path(__file__).parent / 'requirements.txt'}")
+
+        print("\n" + "="*80)
+        sys.exit(1)
+
+    return True
+
+# Run dependency check before importing anything else
+print("🔍 Checking dependencies...")
+check_dependencies()
+print("✅ All dependencies found!\n")
+
+# ============================================================================
+# IMPORTS - All dependencies verified above
+# ============================================================================
 import os
 from dotenv import load_dotenv
 import gradio as gr
@@ -42,16 +159,44 @@ from langchain_openai import ChatOpenAI
 from langchain_core.messages import HumanMessage, SystemMessage
 from langgraph.graph import StateGraph, END
 
-# PDF reading
+# PDF reading (optional - will use fallback if not available)
 try:
     from pypdf import PdfReader
+    print("📄 PDF reader available: pypdf")
 except ImportError:
     try:
         from PyPDF2 import PdfReader
+        print("📄 PDF reader available: PyPDF2")
     except ImportError:
         PdfReader = None
+        print("⚠️  PDF reader not available - will use fallback strategy context")
 
 load_dotenv()
+
+# ============================================================================
+# CONFIGURATION VALIDATION
+# ============================================================================
+
+print("🔑 Checking API key configuration...")
+OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
+
+if not OPENAI_API_KEY:
+    print("\n" + "="*80)
+    print("❌ ERROR: OPENAI_API_KEY not found in environment")
+    print("="*80)
+    print("\n📝 Please add your OpenAI API key to the .env file:")
+    print("-" * 80)
+    print('  OPENAI_API_KEY="sk-proj-..."')
+    print("\n💡 Steps to fix:")
+    print("  1. Get your API key from: https://platform.openai.com/api-keys")
+    print("  2. Create/edit .env file in your project root")
+    print("  3. Add the line above with your actual API key")
+    print("  4. Restart the application")
+    print("\n" + "="*80)
+    sys.exit(1)
+
+print(f"✅ OpenAI API key found (starts with: {OPENAI_API_KEY[:12]}...)")
+print()
 
 # ============================================================================
 # CONFIGURATION
@@ -60,11 +205,22 @@ load_dotenv()
 SCOTIABANK_INVESTOR_PRESENTATION_URL = "https://www.scotiabank.com/content/dam/scotiabank/corporate/quarterly-reports/2025/q3/Q325_Investor_Presentation_en.pdf"
 
 # GPT-4 Turbo with temperature=0 for consistency
-llm = ChatOpenAI(
-    model="gpt-4-turbo-preview",  # or "gpt-4" for more stable version
-    api_key=os.getenv("OPENAI_API_KEY"),
-    temperature=0  # Deterministic outputs for business insights
-)
+print("🤖 Initializing LLM (GPT-4 Turbo)...")
+try:
+    llm = ChatOpenAI(
+        model="gpt-4-turbo-preview",  # or "gpt-4" for more stable version
+        api_key=OPENAI_API_KEY,
+        temperature=0  # Deterministic outputs for business insights
+    )
+    print("✅ LLM initialized successfully")
+except Exception as e:
+    print(f"\n❌ ERROR: Failed to initialize LLM: {e}")
+    print("\nPlease check:")
+    print("  • Your OpenAI API key is valid")
+    print("  • You have internet connectivity")
+    print("  • langchain-openai is properly installed")
+    sys.exit(1)
+print()
 
 # ============================================================================
 # DATA LOADING FUNCTIONS (BACKEND - NO GRADIO UPLOADS)
@@ -955,7 +1111,9 @@ def orchestrator_classify_intent(state: InsightState) -> InsightState:
     prompt = ORCHESTRATOR_INTENT_PROMPT.format(question=question)
 
     try:
+        print("  🔄 Calling LLM for intent classification...")
         response = llm.invoke([HumanMessage(content=prompt)])
+        print("  ✅ LLM response received")
 
         # Parse JSON response
         content = response.content.strip()
@@ -965,7 +1123,9 @@ def orchestrator_classify_intent(state: InsightState) -> InsightState:
             if content.startswith('json'):
                 content = content[4:]
 
+        print("  🔄 Parsing JSON response...")
         intent = json.loads(content)
+        print(f"  ✅ Intent classified: {intent.get('metric', 'unknown')} - Feasible: {intent.get('is_feasible', True)}")
 
         # Update state
         state['intent'] = intent
@@ -980,8 +1140,15 @@ def orchestrator_classify_intent(state: InsightState) -> InsightState:
         else:
             state['feasibility_check'] = {'passed': True}
 
+    except json.JSONDecodeError as e:
+        error_msg = f"Failed to parse LLM response as JSON: {str(e)}\nResponse was: {content[:200]}"
+        print(f"  ❌ {error_msg}")
+        state['error'] = error_msg
+        state['feasibility_check'] = {'passed': False, 'reason': error_msg}
     except Exception as e:
-        state['error'] = f"Intent classification error: {str(e)}"
+        error_msg = f"Intent classification error: {type(e).__name__}: {str(e)}"
+        print(f"  ❌ {error_msg}")
+        state['error'] = error_msg
         state['feasibility_check'] = {'passed': False, 'reason': str(e)}
 
     return state
@@ -1251,22 +1418,41 @@ def generate_insights_internal(question: str, data_df: pd.DataFrame, strategy_co
     }
 
     try:
+        print("\n" + "="*80)
+        print("🚀 STARTING INSIGHT GENERATION WORKFLOW")
+        print("="*80)
+        print(f"📝 Question: {question[:100]}...")
+        print()
+
         # Run workflow
+        print("🔄 Running multi-agent workflow...")
         result = app.invoke(initial_state)
+        print("\n✅ Workflow completed successfully")
 
         # Check if stopped for feasibility
         if result.get('stop_reason'):
+            print("⚠️  Analysis stopped: Data feasibility check failed")
             return result['stop_reason']
 
         # Check for errors
         if result.get('error'):
+            print(f"❌ Error occurred: {result['error'][:100]}...")
             return f"⚠️ Error during analysis:\n\n{result['error']}\n\nPlease try rephrasing your question or ask something different."
 
         # Return final output
-        return result.get('final_output', 'No output generated.')
+        final = result.get('final_output', 'No output generated.')
+        print(f"📊 Generated output: {len(final)} characters")
+        print("="*80 + "\n")
+        return final
 
+    except KeyError as e:
+        error_msg = f"Configuration error - missing key: {str(e)}"
+        print(f"❌ {error_msg}")
+        return f"⚠️ Configuration Error:\n\n{error_msg}\n\nPlease check the workflow setup."
     except Exception as e:
-        return f"⚠️ Unexpected error:\n\n{str(e)}\n\nPlease try again with a simpler question."
+        error_msg = f"{type(e).__name__}: {str(e)}"
+        print(f"❌ Unexpected error: {error_msg}")
+        return f"⚠️ Unexpected Error:\n\n{error_msg}\n\nPlease try again with a simpler question."
 
 
 # ============================================================================
