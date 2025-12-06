@@ -1614,11 +1614,11 @@ if __name__ == "__main__":
     print("="*80)
     print("\nReady to generate insights!")
     print("\nRun command: uv run --env-file .env gradio app.py")
-    print("\nThe interface will open in your browser automatically.")
+    print("\nGenerating public link for easy access...")
     print("="*80 + "\n")
 
     demo.launch(
-        share=False,  # Set to True for public URL if needed
+        share=True,  # ✅ PUBLIC LINK ENABLED - You can copy and paste this URL
         server_name="0.0.0.0",  # Allow external access
         server_port=7860
     )
