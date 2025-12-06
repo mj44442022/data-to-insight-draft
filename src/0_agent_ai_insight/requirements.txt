@@ -1,15 +1,15 @@
 # AI Business Insights Generator - Required Dependencies
-# Vector Institute Agent Bootcamp
+# Vector Institute Agent Bootcamp - Enhanced Version
 
 # Core Data Science
 pandas>=2.0.0
 numpy>=1.24.0
 scipy>=1.10.0
-scikit-learn>=1.3.0
+scikit-learn>=1.3.0  # ✅ For clustering (KMeans) and ML (Random Forest)
 
 # LangChain & LangGraph (REQUIRED)
 langchain-core>=0.1.0
-langchain-openai>=0.0.5
+langchain-google-genai>=1.0.0  # ✅ NEW: Gemini API support
 langgraph>=0.0.20
 
 # Web Interface
@@ -25,5 +25,15 @@ pypdf>=3.0.0
 # E2B Code Interpreter (optional - for sandboxed code execution)
 e2b-code-interpreter>=0.0.8
 
+# Google Gemini (NEW - for cost-efficient model selection)
+google-generativeai>=0.3.0  # ✅ NEW: Gemini Flash and Pro
+
 # Optional but recommended
 # langfuse  # For tracing/monitoring
+
+# Enhanced Analytics Dependencies (NEW)
+# For feature engineering, clustering, and ML analysis:
+# - sklearn.cluster.KMeans (segmentation discovery)
+# - sklearn.ensemble.RandomForestClassifier (pattern analysis)
+# - sklearn.preprocessing.StandardScaler (feature scaling)
+# All included in scikit-learn above
