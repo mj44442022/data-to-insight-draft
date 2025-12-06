@@ -171,6 +171,16 @@ except ImportError:
         PdfReader = None
         print("⚠️  PDF reader not available - will use fallback strategy context")
 
+# E2B Code Interpreter (optional - for sandboxed code execution)
+try:
+    from e2b_code_interpreter import CodeInterpreter
+    print("🔬 E2B Code Interpreter available")
+    E2B_AVAILABLE = True
+except ImportError:
+    CodeInterpreter = None
+    print("⚠️  E2B Code Interpreter not available - will use local data analysis")
+    E2B_AVAILABLE = False
+
 load_dotenv()
 
 # ============================================================================
@@ -220,6 +230,19 @@ except Exception as e:
     print("  • You have internet connectivity")
     print("  • langchain-openai is properly installed")
     sys.exit(1)
+print()
+
+# E2B Code Interpreter configuration
+E2B_TEMPLATE_NAME = "dd7zckr3kvewo7tt1xxt"
+E2B_API_KEY = os.getenv("E2B_API_KEY")
+
+if E2B_AVAILABLE and E2B_API_KEY:
+    print("🔬 E2B Code Interpreter configured")
+    print(f"   Template: {E2B_TEMPLATE_NAME}")
+    print(f"   API Key: {E2B_API_KEY[:12]}...")
+elif E2B_AVAILABLE and not E2B_API_KEY:
+    print("⚠️  E2B available but E2B_API_KEY not set in .env - will use local analysis")
+    E2B_AVAILABLE = False
 print()
 
 # ============================================================================
@@ -357,28 +380,40 @@ def load_banking_data() -> tuple[pd.DataFrame, str]:
     Load banking data from CSV in backend or generate sample data.
     NO GRADIO FILE UPLOAD - data loaded at startup.
 
+    Tries multiple locations in order:
+    1. /data/banking_data.csv (E2B sandbox location)
+    2. ./banking_data.csv (same directory as app.py)
+    3. Generate sample data as fallback
+
     Returns: (dataframe, status_message)
     """
-    # Try to read from same directory as app.py
-    data_path = Path(__file__).parent / "banking_data.csv"
+    # Priority 1: Check /data/banking_data.csv (E2B sandbox location)
+    data_path_e2b = Path("/data/banking_data.csv")
 
-    if data_path.exists():
-        try:
-            df = pd.read_csv(data_path)
-            # Convert date column to datetime
-            df['business_effective_date'] = pd.to_datetime(df['business_effective_date'])
-            status = f"✅ Loaded {len(df):,} rows from banking_data.csv"
-            return df, status
-        except Exception as e:
-            # If CSV exists but can't be read, generate sample data
-            df = generate_sample_banking_data(500)
-            status = f"⚠️ Error reading CSV ({str(e)}). Using 3,000 rows of sample data"
-            return df, status
-    else:
-        # No CSV found, generate sample data
-        df = generate_sample_banking_data(500)
-        status = f"⚠️ No CSV found at {data_path.name}. Using 3,000 rows of sample data"
-        return df, status
+    # Priority 2: Check same directory as app.py
+    data_path_local = Path(__file__).parent / "banking_data.csv"
+
+    # Try paths in order
+    for data_path in [data_path_e2b, data_path_local]:
+        if data_path.exists():
+            try:
+                print(f"   Attempting to load: {data_path}")
+                df = pd.read_csv(data_path)
+                # Convert date column to datetime
+                df['business_effective_date'] = pd.to_datetime(df['business_effective_date'])
+                status = f"✅ Loaded {len(df):,} rows from {data_path}"
+                print(f"   {status}")
+                return df, status
+            except Exception as e:
+                print(f"   ⚠️ Error reading {data_path}: {str(e)}")
+                continue  # Try next path
+
+    # No CSV found in any location, generate sample data
+    print("   No banking_data.csv found in /data/ or local directory")
+    print("   Generating sample data...")
+    df = generate_sample_banking_data(500)
+    status = f"⚠️ No CSV found. Using 3,000 rows of sample data"
+    return df, status
 
 
 def fetch_strategy_context() -> tuple[str, str]:

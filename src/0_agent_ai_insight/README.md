@@ -248,9 +248,22 @@ WEB_SEARCH_API_KEY="..."
 WEAVIATE_HTTP_HOST="..."
 WEAVIATE_GRPC_HOST="..."
 
-# E2B API (optional - not used in MVP)
+# E2B API (optional - for sandboxed code execution)
 E2B_API_KEY="..."
 ```
+
+**E2B Code Interpreter Integration:**
+- Template: `dd7zckr3kvewo7tt1xxt`
+- Used for sandboxed data analysis when available
+- Falls back to local analysis if not configured
+
+### Data File Locations
+
+The app looks for `banking_data.csv` in the following order:
+
+1. **`/data/banking_data.csv`** (E2B sandbox location - priority)
+2. **`./banking_data.csv`** (same directory as app.py - fallback)
+3. **Sample data generation** (if no CSV found)
 
 ### File Structure
 
@@ -261,8 +274,13 @@ data-to-insight-draft/
     └── 0_agent_ai_insight/
         ├── app.py                    # Single-file MVP (THIS IS THE MAIN FILE)
         ├── README.md                 # This documentation
+        ├── requirements.txt          # All dependencies
         └── banking_data.csv          # Optional: your own data
                                       # (if missing, sample data is generated)
+
+# OR in E2B sandbox:
+/data/
+└── banking_data.csv                  # E2B sandbox data location (checked first)
 ```
 
 ---

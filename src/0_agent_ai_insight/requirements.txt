@@ -22,5 +22,8 @@ requests>=2.31.0
 # PDF Reading (at least one required)
 pypdf>=3.0.0
 
+# E2B Code Interpreter (optional - for sandboxed code execution)
+e2b-code-interpreter>=0.0.8
+
 # Optional but recommended
 # langfuse  # For tracing/monitoring
