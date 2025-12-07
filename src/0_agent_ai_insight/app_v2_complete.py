@@ -312,43 +312,46 @@ class AnalysisState(TypedDict):
 
 def phase1_consultation(state: AnalysisState) -> AnalysisState:
     """
-    Phase 1: Clarify business objective and define hypothesis
+    Phase 1: Check if user has a hypothesis, or ask them to provide one
     Model: Gemini Pro (complex reasoning)
+
+    IMPORTANT: The system does NOT define its own hypothesis. It either:
+    1. Identifies if the user already has a hypothesis in their question
+    2. Asks the user to provide their hypothesis and key metrics
     """
     print("\n" + "="*80)
     print("PHASE 1: CONSULTATION & HYPOTHESIS DEFINITION")
     print("="*80)
-    print("Model: Gemini Pro (advanced reasoning)")
+    print("Model: Gemini Pro (hypothesis identification)")
 
     question = state['original_question']
     print(f"User Question: {question}")
 
-    prompt = f"""You are a senior business consultant at an international bank. A client asked:
+    # First, check if user's question contains a hypothesis
+    check_prompt = f"""You are a business consultant. A client asked:
 
 "{question}"
 
-Clarify their business objective and define a testable hypothesis.
+Analyze if this question ALREADY CONTAINS a clear hypothesis or if we need to ask the user for one.
 
-Think step by step:
-1. What is the underlying business goal? (revenue? cost? risk? customers?)
-2. What would a good answer look like?
-3. What metrics should we analyze?
-4. What timeframe makes sense?
+A hypothesis is present if the user:
+- States what they believe is causing something (e.g., "I think X is causing Y")
+- Suggests a relationship to test (e.g., "Does X impact Y?")
+- Mentions specific metrics to examine
 
-Respond in JSON format:
+Respond in JSON:
 {{
-  "business_objective": "[clear business goal]",
-  "hypothesis": "[one sentence testable hypothesis]",
-  "target_metrics": ["metric1", "metric2"],
-  "timeframe": "[last 6 months, MoM trends, etc.]",
-  "analysis_plan": "[2-3 sentence plan]"
+  "has_hypothesis": true/false,
+  "extracted_hypothesis": "[if yes, state it in one sentence]",
+  "mentioned_metrics": ["metric1", "metric2"],
+  "needs_clarification": true/false,
+  "reason": "[why we need more info or why it's clear]"
 }}
-
-Be specific and business-focused."""
+"""
 
     try:
-        print("Calling Gemini Pro...")
-        response = llm_pro.invoke([HumanMessage(content=prompt)])
+        print("Checking if hypothesis is present...")
+        response = llm_pro.invoke([HumanMessage(content=check_prompt)])
         content = response.content.strip()
 
         if "```json" in content:
@@ -356,38 +359,90 @@ Be specific and business-focused."""
         elif "```" in content:
             content = content.split("```")[1].split("```")[0].strip()
 
-        hypothesis_data = json.loads(content)
-        print(f"✅ Hypothesis defined: {hypothesis_data['hypothesis']}")
+        check_data = json.loads(content)
+        print(f"Has hypothesis: {check_data['has_hypothesis']}")
 
-        hypothesis_text = f"""## 📋 PHASE 1: CONSULTATION SUMMARY
+        if check_data['has_hypothesis'] and not check_data['needs_clarification']:
+            # User already has a hypothesis - confirm it
+            print("✅ Hypothesis identified from user question")
+
+            hypothesis_text = f"""## 📋 PHASE 1: HYPOTHESIS CONFIRMATION
 
 **Your Question:** {question}
 
-**Business Objective:**
-{hypothesis_data['business_objective']}
+**I understand your hypothesis to be:**
+"{check_data['extracted_hypothesis']}"
 
-**Hypothesis to Test:**
-{hypothesis_data['hypothesis']}
+**Metrics to examine:**
+{', '.join(check_data['mentioned_metrics']) if check_data['mentioned_metrics'] else 'To be determined based on your confirmation'}
 
-**Target Metrics:** {', '.join(hypothesis_data['target_metrics'])}
-
-**Timeframe:** {hypothesis_data['timeframe']}
-
-**Analysis Plan:**
-{hypothesis_data['analysis_plan']}
+**Available data:**
+- 6 months of customer-level banking data
+- Metrics: Loans, deposits, revenue, churn, products, etc.
+- Countries: Canada, Chile, Mexico, Peru
+- Segments: High Value, Low Value
 
 ---
-✅ **Does this capture what you want to learn?**
-(Click "✅ Approve" to continue or "🔄 Revise" to adjust)
+**Please confirm or clarify:**
+- ✅ "Yes, that's my hypothesis" - to proceed
+- 🔄 "Actually, my hypothesis is..." - to provide your own
+- ℹ️ "I don't have a hypothesis yet" - to work together to define one
 """
 
-        state['hypothesis'] = json.dumps(hypothesis_data)
-        state['conversation_history'].append({"role": "assistant", "content": hypothesis_text})
-        state['current_phase'] = "phase1_approval"
+            state['conversation_history'].append({"role": "assistant", "content": hypothesis_text})
+            state['current_phase'] = "hypothesis_confirmation"
+            state['hypothesis'] = json.dumps({
+                "user_provided": False,
+                "extracted": check_data['extracted_hypothesis'],
+                "metrics": check_data['mentioned_metrics'],
+                "confirmed": False
+            })
+
+        else:
+            # No clear hypothesis - ask user to provide one
+            print("❌ No clear hypothesis - asking user")
+
+            request_text = f"""## 📋 PHASE 1: HYPOTHESIS NEEDED
+
+**Your Question:** {question}
+
+To provide you with the most relevant analysis, I need to understand:
+
+**1. What is your hypothesis?**
+   What do you believe is happening or what relationship do you want to test?
+
+   Examples:
+   - "High-value customers are churning because we lack digital products"
+   - "Mexico is growing faster due to increased credit card adoption"
+   - "Customers with more products have lower churn rates"
+
+**2. What key metrics would you like to examine?**
+   Examples:
+   - Churn rate, revenue, customer segments
+   - Digital adoption, product penetration
+   - Loan-to-deposit ratio, profitability
+
+**Available data to work with:**
+- 6 months of customer data (July-December 2024)
+- Metrics: Total loans, deposits, revenue, churn, digital adoption, product count
+- Segments: High Value vs Low Value
+- Countries: Canada, Chile, Mexico, Peru
+
+---
+**Please provide your hypothesis and key metrics, then I'll proceed with the analysis.**
+
+Example format:
+"My hypothesis is that [X causes Y]. I want to examine [metric1, metric2, metric3]."
+"""
+
+            state['conversation_history'].append({"role": "assistant", "content": request_text})
+            state['current_phase'] = "awaiting_hypothesis"
+            state['hypothesis'] = ""
+
         state['phase_number'] = 1
         state['awaiting_approval'] = True
 
-        print("Phase 1 complete - awaiting user approval")
+        print("Phase 1 complete - awaiting user input")
 
     except Exception as e:
         error_msg = f"Error in Phase 1: {str(e)}"
