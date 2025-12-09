@@ -745,10 +745,7 @@ demo = gr.ChatInterface(
         "What are the key drivers of revenue growth?",
         "Analyze customer segmentation patterns"
     ],
-    theme=gr.themes.Soft(),
-    retry_btn=None,
-    undo_btn=None,
-    clear_btn="Clear"
+    theme=gr.themes.Soft()
 )
 
 # ============================================================================
