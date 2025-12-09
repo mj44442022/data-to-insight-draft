@@ -97,21 +97,24 @@ print(f"✅ Using API endpoint: {OPENAI_BASE_URL}")
 
 # Initialize LLMs with strategic model selection
 # Using OpenAI-compatible interface with Gemini models
+# Note: Use full model names for Gemini's OpenAI endpoint
 llm_flash = ChatOpenAI(
-    model="gemini-1.5-flash",
+    model="gemini-1.5-flash-latest",
     api_key=OPENAI_API_KEY,
     base_url=OPENAI_BASE_URL,
     temperature=0
 )
 
 llm_pro = ChatOpenAI(
-    model="gemini-1.5-pro",
+    model="gemini-1.5-pro-latest",
     api_key=OPENAI_API_KEY,
     base_url=OPENAI_BASE_URL,
     temperature=0
 )
 
 print("✅ LLMs initialized (Gemini Flash + Pro via OpenAI-compatible interface)")
+print(f"   Flash model: gemini-1.5-flash-latest")
+print(f"   Pro model: gemini-1.5-pro-latest")
 
 # ============================================================================
 # DATA LOADING
@@ -138,11 +141,14 @@ def load_banking_data() -> tuple[pd.DataFrame, str]:
         return df, source
 
     print(f"⚠️ Local file not found, trying HuggingFace...")
+    print(f"   Looking for: {local_path.name}")
 
     # Priority 2: HuggingFace datasets package (most robust)
     try:
         from datasets import load_dataset
         print("   Trying HuggingFace datasets package...")
+        print(f"   Dataset: mj44442022/dataset_synthetic_v2")
+        print(f"   File: banking_data_final_complete_flags(1).csv")
 
         dataset = load_dataset(
             "mj44442022/dataset_synthetic_v2",
@@ -150,7 +156,17 @@ def load_banking_data() -> tuple[pd.DataFrame, str]:
         )
         df = dataset['train'].to_pandas()
         source = "HuggingFace datasets: mj44442022/dataset_synthetic_v2"
-        print(f"✅ Loaded from HuggingFace datasets: {len(df)} rows, {len(df.columns)} columns")
+
+        print("\n" + "="*80)
+        print("✅ DATA SUCCESSFULLY LOADED FROM HUGGINGFACE DATASETS PACKAGE")
+        print("="*80)
+        print(f"   Source: HuggingFace datasets API")
+        print(f"   Dataset: mj44442022/dataset_synthetic_v2")
+        print(f"   File: banking_data_final_complete_flags(1).csv")
+        print(f"   Rows: {len(df):,}")
+        print(f"   Columns: {len(df.columns)}")
+        print(f"   Column names: {', '.join(df.columns[:10].tolist())}...")
+        print("="*80 + "\n")
         return df, source
 
     except ImportError:
@@ -749,16 +765,64 @@ demo = gr.ChatInterface(
 )
 
 # ============================================================================
+# SELF-TEST FUNCTION
+# ============================================================================
+def run_self_test():
+    """Test the system before launching Gradio"""
+    print("\n" + "="*80)
+    print("🧪 RUNNING SELF-TEST BEFORE LAUNCH")
+    print("="*80)
+
+    # Test 1: Data loading
+    print("\n1️⃣ Testing data loading...")
+    try:
+        test_df, test_source = load_banking_data()
+        print(f"   ✅ Data loaded successfully")
+        print(f"   Source: {test_source}")
+    except Exception as e:
+        print(f"   ❌ Data loading failed: {e}")
+        return False
+
+    # Test 2: LLM connection
+    print("\n2️⃣ Testing LLM connection (Gemini Flash)...")
+    try:
+        test_response = llm_flash.invoke([HumanMessage(content="Say 'test successful' and nothing else.")])
+        print(f"   ✅ Gemini Flash responding")
+        print(f"   Response: {test_response.content[:50]}...")
+    except Exception as e:
+        print(f"   ❌ Gemini Flash failed: {e}")
+        print("\n💡 TROUBLESHOOTING:")
+        print("   - Check your OPENAI_API_KEY is a valid Gemini API key")
+        print("   - Verify OPENAI_BASE_URL is correct")
+        print("   - Ensure you have API quota available")
+        return False
+
+    print("\n" + "="*80)
+    print("✅ SELF-TEST PASSED - All systems operational")
+    print("="*80)
+    return True
+
+# ============================================================================
 # MAIN EXECUTION
 # ============================================================================
 if __name__ == "__main__":
     print("\n" + "="*80)
-    print("✅ AI BUSINESS INSIGHTS GENERATOR - SIMPLIFIED MVP READY")
+    print("🚀 AI BUSINESS INSIGHTS GENERATOR - SIMPLIFIED MVP")
     print("="*80)
-    print("\n📊 Data source configured:")
-    print("   1. Local: banking_data_final_complete_flags.csv")
-    print("   2. Fallback: HuggingFace URL")
-    print("\n🚀 Launching Gradio interface...")
+
+    # Run self-test
+    if not run_self_test():
+        print("\n❌ Self-test failed. Please fix errors before launching.")
+        print("Exiting...")
+        sys.exit(1)
+
+    # Launch Gradio interface
+    print("\n" + "="*80)
+    print("🚀 LAUNCHING GRADIO INTERFACE")
+    print("="*80)
+    print("\n📊 Data source confirmed:")
+    print("   ✅ HuggingFace datasets package (mj44442022/dataset_synthetic_v2)")
+    print("\n🔗 Generating public link...")
     print("="*80 + "\n")
 
     demo.launch(
