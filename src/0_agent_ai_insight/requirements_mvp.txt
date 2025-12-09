@@ -36,6 +36,9 @@ python-dotenv>=1.0.0
 requests>=2.31.0
 # Provides: HTTP requests for HuggingFace data download fallback
 
+scipy>=1.10.0
+# Provides: stats, chi2_contingency for intermediate analytics tools (required for v4)
+
 # ============================================================================
 # INSTALLATION INSTRUCTIONS
 # ============================================================================
@@ -43,7 +46,7 @@ requests>=2.31.0
 #   pip install -r requirements_mvp.txt
 #
 # Or install individually:
-#   pip install pandas numpy scikit-learn
+#   pip install pandas numpy scikit-learn scipy
 #   pip install langchain-core langchain-openai openai
 #   pip install gradio python-dotenv requests
 #
@@ -76,7 +79,6 @@ datasets>=2.0.0
 # OPTIONAL (NOT REQUIRED FOR MVP)
 # ============================================================================
 # langgraph>=0.0.20          # Only needed for complex state graphs (not in MVP)
-# scipy>=1.10.0              # Only needed for advanced statistics (not in MVP)
 # pypdf>=3.0.0               # Only needed for PDF reading (not in MVP)
 # e2b-code-interpreter       # Only needed for sandboxed execution (not in MVP)
 # langfuse>=3.0.0            # Only needed for tracing/monitoring (optional)
