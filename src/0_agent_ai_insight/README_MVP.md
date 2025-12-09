@@ -66,10 +66,32 @@ pip install -r requirements_mvp.txt
 cat > .env << EOF
 OPENAI_BASE_URL="https://generativelanguage.googleapis.com/v1beta/openai/"
 OPENAI_API_KEY="your-gemini-api-key-here"
+
+# Optional: Override default models (Gemini 2.0 Flash)
+# GEMINI_FLASH_MODEL="gemini-2.0-flash-exp"
+# GEMINI_PRO_MODEL="gemini-2.0-flash-exp"
 EOF
 ```
 
 **Note:** The MVP uses Gemini models through OpenAI-compatible interface, which aligns with Vector Institute bootcamp patterns (using OpenAI SDK). Your Gemini API key works with `OPENAI_API_KEY`.
+
+### Model Names (IMPORTANT)
+
+**Default models (2025):** `gemini-2.0-flash-exp`
+- Stable and widely available
+- Works with OpenAI-compatible endpoint
+- Gemini 1.5 models were deprecated in April 2025
+
+**If you get model errors**, try these alternatives in your `.env`:
+```bash
+# Option 1: Gemini 2.5 Flash (newest)
+GEMINI_FLASH_MODEL="gemini-2.5-flash"
+GEMINI_PRO_MODEL="gemini-2.5-flash"
+
+# Option 2: Gemini 1.5 (legacy, if still available to you)
+GEMINI_FLASH_MODEL="gemini-1.5-flash"
+GEMINI_PRO_MODEL="gemini-1.5-pro"
+```
 
 ## Usage
 

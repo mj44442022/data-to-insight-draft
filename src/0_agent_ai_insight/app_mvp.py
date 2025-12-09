@@ -95,26 +95,35 @@ if not OPENAI_API_KEY:
 
 print(f"✅ Using API endpoint: {OPENAI_BASE_URL}")
 
+# Gemini model names for OpenAI-compatible endpoint
+# Configurable via environment variables for flexibility
+# Default: Use Gemini 2.0 Flash (stable, widely available)
+# Note: Gemini 1.5 models were deprecated April 2025
+GEMINI_FLASH_MODEL = os.getenv("GEMINI_FLASH_MODEL", "gemini-2.0-flash-exp")
+GEMINI_PRO_MODEL = os.getenv("GEMINI_PRO_MODEL", "gemini-2.0-flash-exp")
+
+print(f"📋 Model Configuration:")
+print(f"   Flash model: {GEMINI_FLASH_MODEL}")
+print(f"   Pro model: {GEMINI_PRO_MODEL}")
+print(f"   (Override via GEMINI_FLASH_MODEL and GEMINI_PRO_MODEL env vars)")
+
 # Initialize LLMs with strategic model selection
 # Using OpenAI-compatible interface with Gemini models
-# Note: Use full model names for Gemini's OpenAI endpoint
 llm_flash = ChatOpenAI(
-    model="gemini-1.5-flash-latest",
+    model=GEMINI_FLASH_MODEL,
     api_key=OPENAI_API_KEY,
     base_url=OPENAI_BASE_URL,
     temperature=0
 )
 
 llm_pro = ChatOpenAI(
-    model="gemini-1.5-pro-latest",
+    model=GEMINI_PRO_MODEL,
     api_key=OPENAI_API_KEY,
     base_url=OPENAI_BASE_URL,
     temperature=0
 )
 
-print("✅ LLMs initialized (Gemini Flash + Pro via OpenAI-compatible interface)")
-print(f"   Flash model: gemini-1.5-flash-latest")
-print(f"   Pro model: gemini-1.5-pro-latest")
+print("✅ LLMs initialized (Gemini via OpenAI-compatible interface)")
 
 # ============================================================================
 # DATA LOADING
