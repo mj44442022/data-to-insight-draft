@@ -36,10 +36,10 @@ def check_dependencies():
         missing_deps.append("langchain-core")
 
     try:
-        from langchain_google_genai import ChatGoogleGenerativeAI
-        print("✅ LangChain Google Genai")
+        from langchain_openai import ChatOpenAI
+        print("✅ LangChain OpenAI")
     except ImportError:
-        missing_deps.append("langchain-google-genai")
+        missing_deps.append("langchain-openai")
 
     try:
         import gradio
@@ -47,17 +47,11 @@ def check_dependencies():
     except ImportError:
         missing_deps.append("gradio")
 
-    try:
-        import google.generativeai as genai
-        print("✅ Google Generative AI")
-    except ImportError:
-        missing_deps.append("google-generativeai")
-
     if missing_deps:
         print("\n❌ MISSING DEPENDENCIES:")
         for dep in missing_deps:
             print(f"  • {dep}")
-        print("\n📦 Install with: pip install -r requirements.txt")
+        print("\n📦 Install with: pip install -r requirements_mvp.txt")
         sys.exit(1)
 
     return True
@@ -81,38 +75,43 @@ from sklearn.cluster import KMeans
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.preprocessing import StandardScaler
 
-# LangChain and Gemini
-from langchain_google_genai import ChatGoogleGenerativeAI
+# LangChain with OpenAI-compatible interface (for Gemini)
+from langchain_openai import ChatOpenAI
 from langchain_core.messages import HumanMessage
-import google.generativeai as genai
 
 # ============================================================================
 # CONFIGURATION
 # ============================================================================
 load_dotenv()
 
-GOOGLE_API_KEY = os.getenv("GOOGLE_API_KEY")
-if not GOOGLE_API_KEY:
-    print("❌ ERROR: GOOGLE_API_KEY not found in environment")
-    print("Get your API key from: https://aistudio.google.com/app/apikey")
+# Use OpenAI-compatible endpoint for Gemini
+OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
+OPENAI_BASE_URL = os.getenv("OPENAI_BASE_URL", "https://generativelanguage.googleapis.com/v1beta/openai/")
+
+if not OPENAI_API_KEY:
+    print("❌ ERROR: OPENAI_API_KEY not found in environment")
+    print("Set OPENAI_API_KEY in your .env file (can be Gemini API key)")
     sys.exit(1)
 
-genai.configure(api_key=GOOGLE_API_KEY)
+print(f"✅ Using API endpoint: {OPENAI_BASE_URL}")
 
 # Initialize LLMs with strategic model selection
-llm_flash = ChatGoogleGenerativeAI(
+# Using OpenAI-compatible interface with Gemini models
+llm_flash = ChatOpenAI(
     model="gemini-1.5-flash",
-    google_api_key=GOOGLE_API_KEY,
+    api_key=OPENAI_API_KEY,
+    base_url=OPENAI_BASE_URL,
     temperature=0
 )
 
-llm_pro = ChatGoogleGenerativeAI(
+llm_pro = ChatOpenAI(
     model="gemini-1.5-pro",
-    google_api_key=GOOGLE_API_KEY,
+    api_key=OPENAI_API_KEY,
+    base_url=OPENAI_BASE_URL,
     temperature=0
 )
 
-print("✅ LLMs initialized (Flash + Pro)")
+print("✅ LLMs initialized (Gemini Flash + Pro via OpenAI-compatible interface)")
 
 # ============================================================================
 # DATA LOADING

@@ -54,14 +54,16 @@ The system follows this exact sequence:
 
 ```bash
 # Install dependencies
-pip install -r requirements.txt
+pip install -r requirements_mvp.txt
 
-# Set up environment variable
-export GOOGLE_API_KEY="your-api-key-here"
-
-# Or create .env file
-echo "GOOGLE_API_KEY=your-api-key-here" > .env
+# Set up environment variables in .env file
+cat > .env << EOF
+OPENAI_BASE_URL="https://generativelanguage.googleapis.com/v1beta/openai/"
+OPENAI_API_KEY="your-gemini-api-key-here"
+EOF
 ```
+
+**Note:** The MVP uses Gemini models through OpenAI-compatible interface, which aligns with Vector Institute bootcamp patterns (using OpenAI SDK). Your Gemini API key works with `OPENAI_API_KEY`.
 
 ## Usage
 
@@ -120,17 +122,19 @@ Final Insights (Pro)
 src/0_agent_ai_insight/
 ├── app_mvp.py                 # Simplified MVP (this version)
 ├── app_v2_complete.py         # Full 8-phase version
-├── requirements.txt           # Dependencies
+├── requirements_mvp.txt       # MVP dependencies (9 packages)
+├── requirements.txt           # Full version dependencies
 ├── README_MVP.md             # This file
 └── banking_data_final_complete_flags.csv  # Dataset (optional)
 ```
 
 ## Technical Stack
 
-- **LLMs**: Google Gemini 1.5 (Flash + Pro)
-- **Framework**: LangChain + Gradio
+- **LLMs**: Google Gemini 1.5 (Flash + Pro) via OpenAI-compatible interface
+- **Framework**: LangChain + OpenAI SDK + Gradio
 - **ML**: scikit-learn (KMeans, RandomForest)
 - **Data**: pandas, numpy
+- **Architecture**: Aligns with Vector Institute bootcamp patterns (OpenAI SDK)
 
 ## Debugging
 

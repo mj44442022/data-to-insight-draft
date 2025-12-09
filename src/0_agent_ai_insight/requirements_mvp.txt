@@ -10,16 +10,16 @@ scikit-learn>=1.3.0
 # Provides: KMeans, RandomForestClassifier, StandardScaler
 
 # ============================================================================
-# LANGCHAIN & GOOGLE GEMINI (REQUIRED)
+# LANGCHAIN & OPENAI (REQUIRED)
 # ============================================================================
 langchain-core>=0.1.0
 # Provides: HumanMessage
 
-langchain-google-genai>=1.0.0
-# Provides: ChatGoogleGenerativeAI
+langchain-openai>=0.1.0
+# Provides: ChatOpenAI (works with OpenAI-compatible endpoints including Gemini)
 
-google-generativeai>=0.3.0
-# Provides: genai (Gemini Flash and Pro models)
+openai>=1.0.0
+# Provides: OpenAI SDK (supports custom base_url for Gemini endpoint)
 
 # ============================================================================
 # WEB INTERFACE
@@ -44,8 +44,19 @@ requests>=2.31.0
 #
 # Or install individually:
 #   pip install pandas numpy scikit-learn
-#   pip install langchain-core langchain-google-genai google-generativeai
+#   pip install langchain-core langchain-openai openai
 #   pip install gradio python-dotenv requests
+#
+# ============================================================================
+# .ENV CONFIGURATION
+# ============================================================================
+# The MVP uses OpenAI-compatible interface for Gemini. Set these in .env:
+#
+#   OPENAI_BASE_URL="https://generativelanguage.googleapis.com/v1beta/openai/"
+#   OPENAI_API_KEY="your-gemini-api-key-here"
+#
+# This allows using Gemini models (gemini-1.5-flash, gemini-1.5-pro) through
+# the OpenAI SDK, which aligns with Vector Institute bootcamp patterns.
 #
 # ============================================================================
 # OPTIONAL (NOT REQUIRED FOR MVP)
@@ -54,4 +65,4 @@ requests>=2.31.0
 # scipy>=1.10.0              # Only needed for advanced statistics (not in MVP)
 # pypdf>=3.0.0               # Only needed for PDF reading (not in MVP)
 # e2b-code-interpreter       # Only needed for sandboxed execution (not in MVP)
-# langfuse                   # Only needed for tracing/monitoring (optional)
+# langfuse>=3.0.0            # Only needed for tracing/monitoring (optional)
