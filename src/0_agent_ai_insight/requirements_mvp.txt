@@ -1,0 +1,57 @@
+# AI Business Insights Generator - MVP Requirements
+# Minimal dependencies for the simplified 4-phase workflow
+
+# ============================================================================
+# CORE DATA SCIENCE
+# ============================================================================
+pandas>=2.0.0
+numpy>=1.24.0
+scikit-learn>=1.3.0
+# Provides: KMeans, RandomForestClassifier, StandardScaler
+
+# ============================================================================
+# LANGCHAIN & GOOGLE GEMINI (REQUIRED)
+# ============================================================================
+langchain-core>=0.1.0
+# Provides: HumanMessage
+
+langchain-google-genai>=1.0.0
+# Provides: ChatGoogleGenerativeAI
+
+google-generativeai>=0.3.0
+# Provides: genai (Gemini Flash and Pro models)
+
+# ============================================================================
+# WEB INTERFACE
+# ============================================================================
+gradio>=4.0.0
+# Provides: Chatbot interface with public link support
+
+# ============================================================================
+# UTILITIES
+# ============================================================================
+python-dotenv>=1.0.0
+# Provides: load_dotenv for .env file support
+
+requests>=2.31.0
+# Provides: HTTP requests for HuggingFace data download fallback
+
+# ============================================================================
+# INSTALLATION INSTRUCTIONS
+# ============================================================================
+# Install all dependencies:
+#   pip install -r requirements_mvp.txt
+#
+# Or install individually:
+#   pip install pandas numpy scikit-learn
+#   pip install langchain-core langchain-google-genai google-generativeai
+#   pip install gradio python-dotenv requests
+#
+# ============================================================================
+# OPTIONAL (NOT REQUIRED FOR MVP)
+# ============================================================================
+# langgraph>=0.0.20          # Only needed for complex state graphs (not in MVP)
+# scipy>=1.10.0              # Only needed for advanced statistics (not in MVP)
+# pypdf>=3.0.0               # Only needed for PDF reading (not in MVP)
+# e2b-code-interpreter       # Only needed for sandboxed execution (not in MVP)
+# langfuse                   # Only needed for tracing/monitoring (optional)
