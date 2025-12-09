@@ -120,8 +120,9 @@ def load_banking_data() -> tuple[pd.DataFrame, str]:
     """
     Load banking data with priority:
     1. Local file: banking_data_final_complete_flags.csv
-    2. HuggingFace URL
-    3. ERROR - stop execution
+    2. HuggingFace datasets package
+    3. HuggingFace URL (direct download)
+    4. ERROR - stop execution
     """
     print("\n" + "="*80)
     print("📊 LOADING BANKING DATA")
@@ -136,10 +137,30 @@ def load_banking_data() -> tuple[pd.DataFrame, str]:
         print(f"   Loaded {len(df)} rows, {len(df.columns)} columns")
         return df, source
 
-    # Priority 2: HuggingFace URL
-    hf_url = "https://huggingface.co/datasets/mj44442022/dataset_synthetic_v2/resolve/main/banking_data_final_complete_flags(1).csv"
     print(f"⚠️ Local file not found, trying HuggingFace...")
-    print(f"   URL: {hf_url}")
+
+    # Priority 2: HuggingFace datasets package (most robust)
+    try:
+        from datasets import load_dataset
+        print("   Trying HuggingFace datasets package...")
+
+        dataset = load_dataset(
+            "mj44442022/dataset_synthetic_v2",
+            data_files="banking_data_final_complete_flags(1).csv"
+        )
+        df = dataset['train'].to_pandas()
+        source = "HuggingFace datasets: mj44442022/dataset_synthetic_v2"
+        print(f"✅ Loaded from HuggingFace datasets: {len(df)} rows, {len(df.columns)} columns")
+        return df, source
+
+    except ImportError:
+        print("   ⚠️ datasets package not installed, trying direct URL...")
+    except Exception as e:
+        print(f"   ⚠️ HuggingFace datasets failed ({str(e)}), trying direct URL...")
+
+    # Priority 3: HuggingFace URL (direct download fallback)
+    hf_url = "https://huggingface.co/datasets/mj44442022/dataset_synthetic_v2/resolve/main/banking_data_final_complete_flags(1).csv"
+    print(f"   Trying direct URL: {hf_url}")
 
     try:
         response = requests.get(hf_url, timeout=30)
@@ -151,16 +172,17 @@ def load_banking_data() -> tuple[pd.DataFrame, str]:
             f.write(response.content)
 
         df = pd.read_csv(temp_path)
-        source = f"HuggingFace: {hf_url}"
-        print(f"✅ Loaded from HuggingFace: {len(df)} rows, {len(df.columns)} columns")
+        source = f"HuggingFace URL: {hf_url}"
+        print(f"✅ Loaded from HuggingFace URL: {len(df)} rows, {len(df.columns)} columns")
         return df, source
 
     except Exception as e:
-        print(f"\n❌ ERROR: Failed to load data from both sources")
-        print(f"   Local path: {local_path} (not found)")
-        print(f"   HuggingFace URL: {hf_url}")
-        print(f"   Error: {str(e)}")
+        print(f"\n❌ ERROR: Failed to load data from all sources")
+        print(f"   1. Local path: {local_path} (not found)")
+        print(f"   2. HuggingFace datasets package: Failed or not installed")
+        print(f"   3. HuggingFace URL: {hf_url} (Error: {str(e)})")
         print("\n🛑 STOPPING EXECUTION - Cannot proceed without data")
+        print("\n💡 Try installing datasets: pip install datasets")
         sys.exit(1)
 
 # ============================================================================

@@ -47,8 +47,14 @@ This is a simplified, production-ready MVP of the AI Business Insights Generator
 The system follows this exact sequence:
 
 1. **Local file**: `banking_data_final_complete_flags.csv`
-2. **HuggingFace fallback**: [https://huggingface.co/datasets/mj44442022/dataset_synthetic_v2/resolve/main/banking_data_final_complete_flags(1).csv](https://huggingface.co/datasets/mj44442022/dataset_synthetic_v2/resolve/main/banking_data_final_complete_flags(1).csv)
-3. **ERROR - Stop execution**: No fake data generation
+2. **HuggingFace datasets package**: `mj44442022/dataset_synthetic_v2` (most robust, requires `datasets` package)
+3. **HuggingFace URL fallback**: [https://huggingface.co/datasets/mj44442022/dataset_synthetic_v2/resolve/main/banking_data_final_complete_flags(1).csv](https://huggingface.co/datasets/mj44442022/dataset_synthetic_v2/resolve/main/banking_data_final_complete_flags(1).csv)
+4. **ERROR - Stop execution**: No fake data generation
+
+**Recommended:** Install `datasets` package for more reliable loading:
+```bash
+pip install datasets
+```
 
 ## Installation
 

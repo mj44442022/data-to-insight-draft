@@ -59,6 +59,13 @@ requests>=2.31.0
 # the OpenAI SDK, which aligns with Vector Institute bootcamp patterns.
 #
 # ============================================================================
+# OPTIONAL BUT RECOMMENDED
+# ============================================================================
+datasets>=2.0.0
+# Provides: HuggingFace datasets loader (more robust than direct URL download)
+# Recommended for production use, but not strictly required (URL fallback available)
+
+# ============================================================================
 # OPTIONAL (NOT REQUIRED FOR MVP)
 # ============================================================================
 # langgraph>=0.0.20          # Only needed for complex state graphs (not in MVP)
