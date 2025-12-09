@@ -55,11 +55,14 @@ requests>=2.31.0
 #   OPENAI_BASE_URL="https://generativelanguage.googleapis.com/v1beta/openai/"
 #   OPENAI_API_KEY="your-gemini-api-key-here"
 #
-# Model names (optional, defaults to gemini-2.0-flash-exp):
-#   GEMINI_FLASH_MODEL="gemini-2.0-flash-exp"
-#   GEMINI_PRO_MODEL="gemini-2.0-flash-exp"
+# Model names (optional, defaults to gemini-1.5-flash):
+#   GEMINI_FLASH_MODEL="gemini-1.5-flash"
+#   GEMINI_PRO_MODEL="gemini-1.5-pro"
 #
-# Note: Gemini 1.5 models were deprecated April 2025. Use 2.0 or 2.5 models.
+# IMPORTANT: Use stable model names WITHOUT date suffixes
+#   ✅ GOOD: "gemini-1.5-flash", "gemini-2.5-flash"
+#   ❌ BAD: "gemini-2.5-flash-lite-preview-06-17" (gets deprecated quickly)
+#
 # This configuration aligns with Vector Institute bootcamp patterns (OpenAI SDK).
 #
 # ============================================================================

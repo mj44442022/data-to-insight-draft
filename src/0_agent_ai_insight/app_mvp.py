@@ -97,15 +97,20 @@ print(f"✅ Using API endpoint: {OPENAI_BASE_URL}")
 
 # Gemini model names for OpenAI-compatible endpoint
 # Configurable via environment variables for flexibility
-# Default: Use Gemini 2.0 Flash (stable, widely available)
-# Note: Gemini 1.5 models were deprecated April 2025
-GEMINI_FLASH_MODEL = os.getenv("GEMINI_FLASH_MODEL", "gemini-2.0-flash-exp")
-GEMINI_PRO_MODEL = os.getenv("GEMINI_PRO_MODEL", "gemini-2.0-flash-exp")
+# Default: Use Gemini 1.5 Flash (stable name, widely compatible)
+# Note: Preview models with date suffixes (e.g., -preview-06-17) get deprecated quickly
+#       Use stable model names without dates for better reliability
+GEMINI_FLASH_MODEL = os.getenv("GEMINI_FLASH_MODEL", "gemini-1.5-flash")
+GEMINI_PRO_MODEL = os.getenv("GEMINI_PRO_MODEL", "gemini-1.5-pro")
 
 print(f"📋 Model Configuration:")
 print(f"   Flash model: {GEMINI_FLASH_MODEL}")
 print(f"   Pro model: {GEMINI_PRO_MODEL}")
 print(f"   (Override via GEMINI_FLASH_MODEL and GEMINI_PRO_MODEL env vars)")
+print(f"\n💡 If you get 404 model errors, try these in your .env:")
+print(f"   GEMINI_FLASH_MODEL=\"gemini-1.5-flash\"")
+print(f"   GEMINI_PRO_MODEL=\"gemini-1.5-pro\"")
+print(f"   Or check available models at: https://ai.google.dev/gemini-api/docs/models")
 
 # Initialize LLMs with strategic model selection
 # Using OpenAI-compatible interface with Gemini models
@@ -813,11 +818,27 @@ def run_self_test():
         print(f"   ✅ Gemini Flash responding")
         print(f"   Response: {test_response.content[:50]}...")
     except Exception as e:
+        error_str = str(e)
         print(f"   ❌ Gemini Flash failed: {e}")
         print("\n💡 TROUBLESHOOTING:")
         print("   - Check your OPENAI_API_KEY is a valid Gemini API key")
         print("   - Verify OPENAI_BASE_URL is correct")
         print("   - Ensure you have API quota available")
+
+        # Special handling for 404 model errors
+        if "404" in error_str or "not found" in error_str.lower():
+            print("\n⚠️ MODEL NOT FOUND ERROR - The model may be deprecated or unavailable")
+            print("\n🔧 QUICK FIX - Add these to your .env file:")
+            print("   # Try stable model names (no date suffixes)")
+            print("   GEMINI_FLASH_MODEL=\"gemini-1.5-flash\"")
+            print("   GEMINI_PRO_MODEL=\"gemini-1.5-pro\"")
+            print("\n   # Or if you have access to newer models:")
+            print("   GEMINI_FLASH_MODEL=\"gemini-2.5-flash\"")
+            print("   GEMINI_PRO_MODEL=\"gemini-2.5-flash\"")
+            print("\n   # Recent preview model (as of Sep 2025):")
+            print("   GEMINI_FLASH_MODEL=\"gemini-2.5-flash-lite-preview-09-2025\"")
+            print("\n📖 Check available models: https://ai.google.dev/gemini-api/docs/models")
+
         return False
 
     print("\n" + "="*80)
