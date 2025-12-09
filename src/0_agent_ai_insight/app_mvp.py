@@ -737,7 +737,21 @@ def chatbot_interface(message, history):
         response = run_analysis(message)
         return response
     except Exception as e:
-        return f"❌ Error: {str(e)}\n\nPlease check the console for details."
+        # Print full error to console for debugging
+        print("\n" + "="*80)
+        print("❌ ERROR IN ANALYSIS WORKFLOW")
+        print("="*80)
+        print(f"User message: {message}")
+        print(f"Error type: {type(e).__name__}")
+        print(f"Error message: {str(e)}")
+
+        # Print full traceback for debugging
+        import traceback
+        print("\nFull traceback:")
+        traceback.print_exc()
+        print("="*80 + "\n")
+
+        return f"❌ Error: {str(e)}\n\nFull error details have been logged to the console."
 
 # Create Gradio interface
 demo = gr.ChatInterface(
