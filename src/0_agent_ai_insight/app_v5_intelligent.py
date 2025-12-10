@@ -239,15 +239,17 @@ COLUMNS: {relevant_cols}
 REQUIREMENTS:
 - DataFrame is named 'df'
 - Store final result in 'results' (DataFrame or dict)
-- For comparisons: use df.groupby(['col1', 'col2'])['metric'].mean()
+- THINK CLIENT-CENTRIC: Use .mean() for per-client metrics, .sum() for portfolio totals
+- Include BOTH averages (per client) AND counts (portfolio size) when comparing groups
+- For comparisons: use df.groupby(['col1', 'col2'])['metric'].agg(['mean', 'count'])
 - For correlations: use df[cols].corr()
 - Keep it SIMPLE - max 10 lines
 - NO functions, NO imports, NO prints
 
 EXAMPLES:
 
-Comparison by country and mortgage:
-results = df.groupby(['country_name', 'has_open_mortgage'])['total_revenues'].mean().round(2).reset_index()
+Comparison by country and mortgage (CLIENT-CENTRIC):
+results = df.groupby(['country_name', 'has_open_mortgage'])['total_revenues'].agg([('avg_revenue', 'mean'), ('client_count', 'count')]).round(2).reset_index()
 
 Correlation:
 results = df[['total_revenues', 'total_loans_balance', 'total_deposit_balance']].corr()
@@ -387,22 +389,31 @@ TASK: Write executive-friendly insights.
 
 FORMAT:
 
+**Methodology**: [1 sentence: what analysis was done]
+
 ### Key Findings
-- **Finding 1**: [Insight with numbers and % difference]
-- **Finding 2**: [Insight with numbers and % difference]
+- **Finding 1**: [Insight with numbers and % difference - per client average]
+- **Finding 2**: [Insight with numbers - portfolio level when relevant]
+- **Finding 3**: [Insight comparing segments]
 
 ### Business Implication
 [What this means and what to do about it]
 
-RULES:
-- Be SPECIFIC with numbers (not "total_revenues: 230" but "$230 avg revenue")
+RULES - CRITICAL:
+- Start with brief methodology (e.g., "Analyzed average revenue per client across X segments")
+- NEVER use casual language ("Okay", "Here's", "Let me", "So")
+- Be PROFESSIONAL and DIRECT
+- Report AVERAGES for client-level insights (how a typical client looks)
+- Report TOTALS/COUNTS for portfolio-level context (how many clients, total value)
 - Calculate and highlight DIFFERENCES (X is Y% higher than Z)
-- Use business language (customers, revenue, deposits - not rows, columns)
+- Use business language (clients, average revenue per client, not rows)
 - Keep it BRIEF (3-5 bullets max)
 - Focus on SO WHAT not WHAT
 
-BAD: "has_open_payroll False: 230.66, True: 212.25"
-GOOD: "**Clients without payroll generate 9% more revenue** ($231 vs $212 avg)"
+BAD: "Okay, here's the analysis. total_revenues: 230.66"
+GOOD: "**Methodology**: Compared average revenue per client by payroll status.
+
+**Non-payroll clients generate $231 average revenue** (9% higher than payroll clients at $212 avg)"
 """
 
     response = llm_pro.invoke([HumanMessage(content=prompt)])
