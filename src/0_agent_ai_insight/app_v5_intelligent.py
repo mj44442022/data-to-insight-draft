@@ -211,52 +211,62 @@ def generate_analysis_code(understanding: Dict[str, Any], plan: Dict[str, Any], 
     print("💻 LAYER 3: GENERATING CODE")
     print("="*60)
 
-    # Get sample of data for context
-    sample_data = df[understanding['relevant_columns'][:10]].head(3).to_string()
+    # Simplify based on analysis type
+    analysis_type = understanding.get('analysis_type', 'profiling')
+    relevant_cols = understanding['relevant_columns'][:15]
 
-    prompt = f"""You are a Senior Python Data Analyst. Write code for this analysis.
+    if analysis_type == 'profiling':
+        # Simple profiling - just show schema
+        code = f"""
+# Dataset overview
+numeric_cols = {[c for c in relevant_cols if c in df.select_dtypes(include=[np.number]).columns.tolist()]}
+boolean_cols = {[c for c in relevant_cols if df[c].dtype == 'bool']}
+categorical_cols = {[c for c in relevant_cols if c in df.select_dtypes(include=['object']).columns.tolist()]}
 
-ANALYSIS PLAN:
-{plan['approach']}
+results = {{
+    'total_rows': len(df),
+    'total_columns': len(df.columns),
+    'numeric_columns': numeric_cols,
+    'boolean_flags': boolean_cols,
+    'categorical_columns': categorical_cols
+}}
+"""
+    else:
+        # For other types, generate targeted code
+        prompt = f"""Write SHORT Python code (max 10 lines) for this analysis.
 
-STEPS:
-{chr(10).join(f"{i+1}. {step}" for i, step in enumerate(plan['steps']))}
-
-RELEVANT COLUMNS: {understanding['relevant_columns']}
-
-DATA SAMPLE:
-{sample_data}
+ANALYSIS TYPE: {analysis_type}
+COLUMNS: {relevant_cols}
 
 REQUIREMENTS:
-- Write Python code that works with pandas DataFrame named 'df'
-- Store final results in a variable named 'results' (dict or DataFrame)
-- Use proper groupby for multi-dimensional analysis
-- Include only the TOP insights (max 5-10 rows)
-- NO plotting, NO print statements
-- Handle any potential errors
+- DataFrame is named 'df'
+- Store final result in 'results' (DataFrame or dict)
+- For comparisons: use df.groupby(['col1', 'col2'])['metric'].mean()
+- For correlations: use df[cols].corr()
+- Keep it SIMPLE - max 10 lines
+- NO functions, NO imports, NO prints
 
-EXAMPLE for "revenue by country and mortgage":
-```python
-results = df.groupby(['country_name', 'has_open_mortgage'])['total_revenues'].agg([
-    ('avg_revenue', 'mean'),
-    ('count', 'count')
-]).round(2).reset_index()
-results = results.sort_values('avg_revenue', ascending=False)
-```
+EXAMPLES:
 
-Return ONLY executable Python code, no explanations."""
+Comparison by country and mortgage:
+results = df.groupby(['country_name', 'has_open_mortgage'])['total_revenues'].mean().round(2).reset_index()
 
-    response = llm_pro.invoke([HumanMessage(content=prompt)])
-    code = response.content
+Correlation:
+results = df[['total_revenues', 'total_loans_balance', 'total_deposit_balance']].corr()
 
-    # Extract code from markdown if present
-    if "```python" in code:
-        code = code.split("```python")[1].split("```")[0].strip()
-    elif "```" in code:
-        code = code.split("```")[1].split("```")[0].strip()
+Return ONLY the Python code."""
+
+        response = llm_flash.invoke([HumanMessage(content=prompt)])
+        code = response.content
+
+        # Extract code
+        if "```python" in code:
+            code = code.split("```python")[1].split("```")[0].strip()
+        elif "```" in code:
+            code = code.split("```")[1].split("```")[0].strip()
 
     print(f"✅ Generated {len(code)} characters of code")
-    print(f"Preview:\n{code[:200]}...")
+    print(f"Code:\n{code}")
 
     return code
 
@@ -285,21 +295,30 @@ def execute_analysis_code(code: str, df: pd.DataFrame) -> Dict[str, Any]:
         results = exec_globals.get('results')
 
         if results is None:
+            print("⚠️ No results variable found")
             return {"error": "Code didn't produce 'results' variable"}
 
         # Convert results to serializable format
         if isinstance(results, pd.DataFrame):
+            # Limit rows
+            results = results.head(15)
             results_dict = {
                 "type": "dataframe",
                 "data": results.to_dict('records'),
                 "columns": results.columns.tolist(),
                 "shape": results.shape,
-                "preview": results.head(10).to_string()
+                "preview": results.to_string()
             }
         elif isinstance(results, dict):
             results_dict = {
                 "type": "dict",
                 "data": results,
+                "preview": json.dumps(results, indent=2, default=str)
+            }
+        elif isinstance(results, (pd.Series, np.ndarray)):
+            results_dict = {
+                "type": "series",
+                "data": results.to_dict() if hasattr(results, 'to_dict') else str(results),
                 "preview": str(results)
             }
         else:
@@ -337,47 +356,55 @@ def generate_insights(understanding: Dict[str, Any], plan: Dict[str, Any],
         return f"⚠️ I encountered an issue analyzing that: {execution_results['error']}\n\nCould you rephrase your question?"
 
     results_preview = execution_results.get('preview', '')
+    results_type = execution_results.get('type', 'unknown')
 
-    prompt = f"""You are presenting insights to busy Scotiabank executives.
+    # For simple profiling, format differently
+    if results_type == 'dict' and 'total_rows' in str(results_preview):
+        data = execution_results.get('data', {})
+        output = f"""### 📊 Dataset Overview
 
-EXECUTIVE QUESTION: "{user_question}"
+**{data.get('total_rows', 0):,} customers** across **{data.get('total_columns', 0)} data points**
 
-ANALYSIS CONDUCTED:
-{plan['approach']}
+**Numeric Metrics** ({len(data.get('numeric_columns', []))}):
+{', '.join(data.get('numeric_columns', [])[:10])}{"..." if len(data.get('numeric_columns', [])) > 10 else ""}
 
-RESULTS:
+**Customer Flags** ({len(data.get('boolean_flags', []))}):
+{', '.join(data.get('boolean_flags', [])[:10])}{"..." if len(data.get('boolean_flags', [])) > 10 else ""}
+
+**Segmentation** ({len(data.get('categorical_columns', []))}):
+{', '.join(data.get('categorical_columns', []))}
+
+💡 *Ask follow-up questions to analyze specific metrics or compare customer segments.*"""
+        return output
+
+    # For analysis results, generate insights
+    prompt = f"""You are presenting to Scotiabank executives who need ACTIONABLE INSIGHTS.
+
+QUESTION: "{user_question}"
+
+ANALYSIS RESULTS:
 {results_preview}
 
-TASK: Present clear, actionable insights in executive-friendly format.
+TASK: Write executive-friendly insights.
 
-FORMAT YOUR RESPONSE EXACTLY LIKE THIS:
+FORMAT:
 
 ### Key Findings
-
-[2-3 bullet points with insights and numbers]
-- **Insight 1**: Specific finding with key numbers
-- **Insight 2**: Specific finding with key numbers
-- **Insight 3**: Specific finding with key numbers
-
-### Supporting Data
-
-[Clean table or list of relevant numbers]
+- **Finding 1**: [Insight with numbers and % difference]
+- **Finding 2**: [Insight with numbers and % difference]
 
 ### Business Implication
-
-[1-2 sentences on what this means for the business]
+[What this means and what to do about it]
 
 RULES:
-- Use markdown formatting (**, ###, -)
-- Include specific numbers from results
-- Focus on INSIGHTS not raw data
-- Write for executives (clear, brief, actionable)
-- NO code, NO technical jargon
-- If comparing groups, highlight the DIFFERENCE
-- Use $ for money, % for percentages, K for thousands
+- Be SPECIFIC with numbers (not "total_revenues: 230" but "$230 avg revenue")
+- Calculate and highlight DIFFERENCES (X is Y% higher than Z)
+- Use business language (customers, revenue, deposits - not rows, columns)
+- Keep it BRIEF (3-5 bullets max)
+- Focus on SO WHAT not WHAT
 
-Example BAD: "total_revenues: 230.66"
-Example GOOD: "**Non-payroll clients generate $231 avg revenue** (8% higher than payroll clients at $212)"
+BAD: "has_open_payroll False: 230.66, True: 212.25"
+GOOD: "**Clients without payroll generate 9% more revenue** ($231 vs $212 avg)"
 """
 
     response = llm_pro.invoke([HumanMessage(content=prompt)])
