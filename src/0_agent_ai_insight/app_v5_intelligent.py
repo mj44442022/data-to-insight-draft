@@ -21,8 +21,6 @@ import gradio as gr
 import requests
 from dotenv import load_dotenv
 from typing import Dict, Any, List
-from io import StringIO
-import contextlib
 
 # LangChain
 from langchain_openai import ChatOpenAI
