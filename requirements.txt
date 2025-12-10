@@ -1,0 +1,25 @@
+# Multi-Agent Business Insight System
+# Based on Anthropic Agents SDK and Vector Institute Agent Bootcamp
+
+# Core Agent Framework
+anthropic-agents>=0.1.0
+gradio>=4.0.0
+
+# LLM Providers
+openai>=1.0.0
+langchain-openai>=0.1.0
+langchain-core>=0.1.0
+
+# Data Processing
+pandas>=2.0.0
+numpy>=1.24.0
+
+# Utilities
+python-dotenv>=1.0.0
+requests>=2.31.0
+
+# Optional: Observability
+langfuse>=2.0.0
+
+# Optional: Knowledge Base (if needed for future expansion)
+# weaviate-client>=4.0.0
