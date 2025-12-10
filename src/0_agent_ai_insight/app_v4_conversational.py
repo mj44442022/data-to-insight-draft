@@ -384,46 +384,29 @@ def route_to_tools(user_question: str, conversation_history: List[Dict], df: pd.
     # Build context from conversation
     context = "\n".join([f"User: {turn['user']}\nAgent: {turn['agent'][:200]}..." for turn in conversation_history[-3:]])
 
-    routing_prompt = f"""You are a Senior Data Analyst at Scotiabank with 10+ years of experience.
+    routing_prompt = f"""You are a Senior Data Analyst at Scotiabank. Select tools to answer the user's question.
 
-AVAILABLE TOOLS:
-- schema_info: Show dataset schema and columns
-- column_details: Get stats for specific columns
-- correlation_analysis: Correlations with target variable
-- grouped_averages: Average metric by categorical groups
-- flag_comparison: Compare metrics across boolean flags
-- create_bins: Create quartiles/bins for numeric columns
-- binned_analysis: Analyze metrics by bins and groups
-- mutual_information: Feature importance using MI
-- outlier_detection: Detect outliers with z-score
-- linear_regression_drivers: Regression coefficients by groups
-- clustering_analysis: K-means customer segmentation
+DATASET:
+- Numeric: {', '.join(toolkit.numeric_cols)}
+- Boolean flags: {', '.join([c for c in df.columns if df[c].dtype == 'bool'])}
+- Categorical: {', '.join([c for c in toolkit.categorical_cols if df[c].dtype != 'bool'])}
 
-CONVERSATION CONTEXT:
-{context}
+QUESTION: "{user_question}"
 
-CURRENT QUESTION: "{user_question}"
+TOOLS:
+1. schema_info - show overview (no params)
+2. column_details - show stats for columns (params: {{"columns": ["col1", "col2"]}})
+3. correlation_analysis - correlations with target (params: {{"target_col": "total_revenues"}})
+4. grouped_averages - average metric by groups (params: {{"metric_col": "total_revenues", "group_cols": ["country_name"]}})
+5. flag_comparison - compare metric by flags (params: {{"metric_col": "total_revenues", "flag_cols": ["has_open_mortgage"]}})
 
-DATASET INFO:
-- {len(df):,} rows, {len(df.columns)} columns
-- Numeric columns: {', '.join(toolkit.numeric_cols[:10])}...
-- Categorical columns: {', '.join(toolkit.categorical_cols[:10])}...
+EXAMPLES:
+Q: "What data is available?" → {{"tools": [{{"name": "schema_info", "params": {{}}}}]}}
+Q: "Correlation between revenue and deposits" → {{"tools": [{{"name": "correlation_analysis", "params": {{"target_col": "total_revenues"}}}}]}}
+Q: "How does mortgage affect revenue by country?" → {{"tools": [{{"name": "grouped_averages", "params": {{"metric_col": "total_revenues", "group_cols": ["country_name", "has_open_mortgage"]}}}}]}}
 
-TASK: Choose the BEST tool(s) and parameters to answer this question.
-
-Return JSON:
-{{
-  "tools": [
-    {{
-      "name": "tool_name",
-      "params": {{"param1": "value1"}},
-      "reason": "why this tool"
-    }}
-  ],
-  "approach": "1-2 sentence strategy"
-}}
-
-Be smart. Start simple. Use advanced tools only when needed."""
+Return ONLY valid JSON:
+{{"tools": [{{"name": "...", "params": {{...}}}}]}}"""
 
     try:
         response = llm.invoke([HumanMessage(content=routing_prompt)])
@@ -447,7 +430,6 @@ def execute_tools(plan: Dict[str, Any], df: pd.DataFrame) -> str:
     toolkit = AnalyticsToolkit(df)
 
     results = []
-    results.append(f"**Approach**: {plan.get('approach', 'Analyzing...')}\n")
 
     for tool_spec in plan.get('tools', []):
         tool_name = tool_spec['name']
@@ -459,30 +441,44 @@ def execute_tools(plan: Dict[str, Any], df: pd.DataFrame) -> str:
             elif tool_name == 'column_details':
                 results.append(toolkit.column_details(params.get('columns', [])))
             elif tool_name == 'correlation_analysis':
-                results.append(toolkit.correlation_analysis(params['target_col'], params.get('top_n', 10)))
+                target_col = params.get('target_col', 'total_revenues')
+                results.append(toolkit.correlation_analysis(target_col, params.get('top_n', 10)))
             elif tool_name == 'grouped_averages':
-                results.append(toolkit.grouped_averages(params['metric_col'], params['group_cols']))
+                metric_col = params.get('metric_col', 'total_revenues')
+                group_cols = params.get('group_cols', [])
+                results.append(toolkit.grouped_averages(metric_col, group_cols))
             elif tool_name == 'flag_comparison':
-                results.append(toolkit.flag_comparison(params['metric_col'], params['flag_cols']))
+                metric_col = params.get('metric_col', 'total_revenues')
+                flag_cols = params.get('flag_cols', [])
+                results.append(toolkit.flag_comparison(metric_col, flag_cols))
             elif tool_name == 'create_bins':
-                results.append(toolkit.create_bins(params['numeric_col'], params.get('n_bins', 3)))
+                numeric_col = params.get('numeric_col', 'total_revenues')
+                results.append(toolkit.create_bins(numeric_col, params.get('n_bins', 3)))
             elif tool_name == 'binned_analysis':
-                results.append(toolkit.binned_analysis(params['metric_col'], params['bin_col'], params.get('group_cols')))
+                metric_col = params.get('metric_col', 'total_revenues')
+                bin_col = params.get('bin_col', '')
+                results.append(toolkit.binned_analysis(metric_col, bin_col, params.get('group_cols')))
             elif tool_name == 'mutual_information':
-                results.append(toolkit.mutual_information(params['target_col'], params.get('top_n', 10)))
+                target_col = params.get('target_col', 'total_revenues')
+                results.append(toolkit.mutual_information(target_col, params.get('top_n', 10)))
             elif tool_name == 'outlier_detection':
-                results.append(toolkit.outlier_detection(params['columns'], params.get('threshold', 3.0)))
+                results.append(toolkit.outlier_detection(params.get('columns', toolkit.numeric_cols[:5]), params.get('threshold', 3.0)))
             elif tool_name == 'linear_regression_drivers':
-                results.append(toolkit.linear_regression_drivers(params['target_col'], params.get('group_col')))
+                target_col = params.get('target_col', 'total_revenues')
+                results.append(toolkit.linear_regression_drivers(target_col, params.get('group_col')))
             elif tool_name == 'clustering_analysis':
                 results.append(toolkit.clustering_analysis(params.get('n_clusters', 3)))
             else:
-                results.append(f"⚠️ Unknown tool: {tool_name}")
+                print(f"⚠️ Unknown tool: {tool_name}")
+                continue
 
         except Exception as e:
-            results.append(f"⚠️ Error in {tool_name}: {str(e)}")
+            print(f"⚠️ Error in {tool_name}: {str(e)}")
+            import traceback
+            traceback.print_exc()
+            continue
 
-    return "\n\n".join(results)
+    return "\n\n".join(results) if results else "I couldn't analyze that. Could you rephrase your question?"
 
 # ============================================================================
 # CONVERSATIONAL AGENT
@@ -507,11 +503,9 @@ def conversational_agent(user_input: str, history):
         yield summary
 
     # Route to tools
-    yield "🧠 Analyzing your question..."
     plan = route_to_tools(user_input, CONVERSATION_HISTORY, df)
 
     # Execute tools
-    yield f"⚡ Running analysis: {plan.get('approach', '...')}"
     tool_results = execute_tools(plan, df)
 
     # Store in conversation history
