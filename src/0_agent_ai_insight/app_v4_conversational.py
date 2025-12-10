@@ -42,9 +42,9 @@ if not OPENAI_API_KEY:
     print("❌ ERROR: OPENAI_API_KEY not found")
     sys.exit(1)
 
-# Initialize LLM (Gemini Pro for reasoning)
+# Initialize LLM (Gemini for reasoning)
 llm = ChatOpenAI(
-    model=os.getenv("GEMINI_PRO_MODEL", "gemini-1.5-pro"),
+    model=os.getenv("GEMINI_PRO_MODEL", "gemini-2.0-flash-exp"),
     api_key=OPENAI_API_KEY,
     base_url=OPENAI_BASE_URL,
     temperature=0
@@ -107,17 +107,32 @@ class AnalyticsToolkit:
 
     def schema_info(self) -> str:
         """Return schema information with data types and sample values"""
-        output = f"### Dataset Schema ({len(self.df):,} rows, {len(self.df.columns)} columns)\n\n"
+        output = f"### 📊 Dataset Overview\n\n"
+        output += f"**{len(self.df):,} rows** × **{len(self.df.columns)} columns**\n\n"
 
-        info_lines = []
-        for idx, col in enumerate(self.df.columns):
-            dtype = str(self.df[col].dtype)
-            non_null = self.df[col].notna().sum()
-            sample_val = self.df[col].dropna().iloc[0] if non_null > 0 else "N/A"
+        # Group by type
+        numeric = [c for c in self.df.columns if c in self.numeric_cols]
+        categorical = [c for c in self.df.columns if c in self.categorical_cols]
+        boolean = [c for c in self.df.columns if self.df[c].dtype == 'bool']
 
-            info_lines.append(f"{idx:2d}  {col:45s}  {non_null:,} non-null  {dtype}")
+        output += f"**📈 Numeric columns** ({len(numeric)}):\n"
+        output += ", ".join(numeric[:15])
+        if len(numeric) > 15:
+            output += f" ... and {len(numeric)-15} more"
+        output += "\n\n"
 
-        output += "\n".join(info_lines)
+        output += f"**🏷️ Boolean flags** ({len(boolean)}):\n"
+        output += ", ".join(boolean[:15])
+        if len(boolean) > 15:
+            output += f" ... and {len(boolean)-15} more"
+        output += "\n\n"
+
+        output += f"**🔤 Categorical columns** ({len([c for c in categorical if c not in boolean])}):\n"
+        cat_non_bool = [c for c in categorical if c not in boolean]
+        output += ", ".join(cat_non_bool[:15])
+        if len(cat_non_bool) > 15:
+            output += f" ... and {len(cat_non_bool)-15} more"
+
         return output
 
     def column_details(self, columns: List[str]) -> str:
