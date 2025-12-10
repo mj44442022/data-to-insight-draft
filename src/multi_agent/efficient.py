@@ -25,6 +25,7 @@ from openai import AsyncOpenAI
 from prompts.react_instructions import REACT_INSTRUCTIONS
 from utils import agent_stream_to_gradio_messages
 from multi_agent.business_insight_worker import analyze_business_insight
+from multi_agent.data_overview_agent import get_data_overview
 
 
 # ============================================================================
@@ -67,23 +68,41 @@ def _handle_sigint(signum: int, frame: object) -> None:
 # ============================================================================
 
 def create_agents(openai_client: AsyncOpenAI):
-    """Create the worker and planner agents.
+    """Create the data overview, business insight, and planner agents.
 
     Args:
         openai_client: Async OpenAI client for LLM calls
 
     Returns:
-        Tuple of (business_insight_worker_agent, main_planner_agent)
+        Tuple of (data_overview_agent, business_insight_worker_agent, main_planner_agent)
     """
 
-    # Business Insight Worker Agent
+    # Data Overview Agent - Fast schema overview
+    # This agent wraps the get_data_overview function as a tool
+    data_overview_agent = agents.Agent(
+        name="DataOverviewAgent",
+        instructions=(
+            "You are the Data Overview Agent for Scotiabank. "
+            "Your job is to provide a quick schema overview of the available banking data. "
+            "Call the get_data_overview function and return the formatted schema overview."
+        ),
+        tools=[
+            agents.function_tool(get_data_overview),
+        ],
+        model=agents.OpenAIChatCompletionsModel(
+            model=AGENT_LLM_NAMES["worker"],
+            openai_client=openai_client
+        ),
+    )
+
+    # Business Insight Worker Agent - Deep analysis (Layers 2-5)
     # This agent wraps the analyze_business_insight function as a tool
     business_insight_worker_agent = agents.Agent(
         name="BusinessInsightWorker",
         instructions=(
             "You are the Business Insight Worker Agent for Scotiabank. "
             "You receive a business question about banking data and perform a "
-            "5-layer analysis: understand, plan, code generation, execution, and insights. "
+            "multi-layer analysis: plan, code generation, execution, and insights. "
             "Your job is to call the analyze_business_insight function with the user's question "
             "and return the executive-friendly insights it produces."
         ),
@@ -97,18 +116,28 @@ def create_agents(openai_client: AsyncOpenAI):
     )
 
     # Main Planner Agent
-    # This agent decides when to invoke the worker
+    # This agent decides when to invoke which worker
     main_planner_agent = agents.Agent(
         name="MainPlannerAgent",
         instructions=REACT_INSTRUCTIONS,
         tools=[
+            data_overview_agent.as_tool(
+                tool_name="data_overview",
+                tool_description=(
+                    "Provides a quick schema overview of available Scotiabank banking data. "
+                    "Returns formatted information about total customers, numeric metrics, "
+                    "boolean flags, and categorical columns. Use this for questions like "
+                    "'What data is available?' or 'Show me the dataset schema.'"
+                ),
+            ),
             business_insight_worker_agent.as_tool(
                 tool_name="business_insight_worker",
                 tool_description=(
                     "Performs comprehensive business insight analysis on Scotiabank banking data. "
                     "Pass the user's question directly to this tool. It will handle planning, "
                     "code generation, execution, and insight generation. Returns executive-friendly "
-                    "business insights with methodology, key findings, and business implications."
+                    "business insights with methodology, key findings, and business implications. "
+                    "Use this for analysis questions like 'Compare X by Y' or 'Show correlation between A and B.'"
                 ),
             )
         ],
@@ -118,7 +147,7 @@ def create_agents(openai_client: AsyncOpenAI):
         ),
     )
 
-    return business_insight_worker_agent, main_planner_agent
+    return data_overview_agent, business_insight_worker_agent, main_planner_agent
 
 
 # ============================================================================
@@ -137,8 +166,8 @@ async def _main(question: str, gr_messages: list[ChatMessage]):
     """
     global async_openai_client
 
-    # Create agents
-    _, main_agent = create_agents(async_openai_client)
+    # Create agents (data overview, business insight, and main planner)
+    _, _, main_agent = create_agents(async_openai_client)
 
     try:
         # Run the main planner agent
@@ -180,21 +209,25 @@ demo = gr.ChatInterface(
     description="""
     **Intelligent Multi-Agent System for Banking Analytics**
 
-    This system uses a planner-worker architecture:
-    - **Main Agent**: Routes your questions intelligently
-    - **Business Insight Worker**: Performs 5-layer analysis (Plan → Code → Execute → Insights)
+    This system uses a dual-worker architecture for optimal efficiency:
+    - **Main Planner**: Routes questions to the appropriate specialist
+    - **Data Overview Agent**: Fast schema/overview (for "what data" questions)
+    - **Business Insight Worker**: Deep analysis (Plan → Code → Execute → Insights)
 
-    **Each analysis includes:**
+    **For data overview queries:**
+    - Returns quick schema with metrics, flags, and segments
+
+    **For analysis queries:**
     1. 📋 Planning - Methodology design
     2. 💻 Code Generation - Custom analysis code
     3. ⚡ Execution - Safe code execution
     4. 📊 Insights - Executive-friendly results
 
     **Try asking:**
-    - "What data is available?"
-    - "Compare clients with payroll vs without payroll"
-    - "How does mortgage ownership affect revenue by country?"
-    - "Show correlation between revenue and loans"
+    - "What data is available?" (fast overview)
+    - "Compare clients with payroll vs without payroll" (deep analysis)
+    - "How does mortgage ownership affect revenue by country?" (deep analysis)
+    - "Show correlation between revenue and loans" (deep analysis)
     """,
     examples=[
         "What information is available?",
@@ -216,9 +249,10 @@ if __name__ == "__main__":
     print("\n" + "="*80)
     print("🚀 SCOTIABANK MULTI-AGENT BUSINESS INSIGHT SYSTEM")
     print("="*80)
-    print("   Architecture: Planner-Worker Multi-Agent")
-    print("   Worker: Business Insight Agent (5-layer analysis)")
-    print("   Planner: Intelligent routing and orchestration")
+    print("   Architecture: Dual-Worker Multi-Agent System")
+    print("   - Data Overview Agent: Fast schema overview")
+    print("   - Business Insight Agent: Deep analysis (Layers 2-5)")
+    print("   - Main Planner: Intelligent routing and orchestration")
     print("="*80 + "\n")
 
     # Initialize async OpenAI client
