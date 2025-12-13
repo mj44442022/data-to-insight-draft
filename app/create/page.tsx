@@ -29,6 +29,7 @@ export default function CreatePage() {
     description: string;
     keyMessages: string;
     tone: string;
+    contentPillar: string;
   }) => {
     setIsGenerating(true);
     setProgress(0);
@@ -50,6 +51,7 @@ export default function CreatePage() {
       formData.append('description', data.description);
       formData.append('keyMessages', data.keyMessages);
       formData.append('tone', data.tone);
+      formData.append('contentPillar', data.contentPillar);
       data.images.forEach((image) => {
         formData.append('images', image);
       });
@@ -63,7 +65,10 @@ export default function CreatePage() {
 
       if (!response.ok) {
         const errorData = await response.json();
-        throw new Error(errorData.error || 'Generation failed');
+        const errorMessage = errorData.details
+          ? `${errorData.error}\n${errorData.details}${errorData.step ? `\nFailed at: ${errorData.step}` : ''}`
+          : errorData.error || 'Generation failed';
+        throw new Error(errorMessage);
       }
 
       const result = await response.json();
@@ -71,6 +76,7 @@ export default function CreatePage() {
       if (result.success) {
         setGeneratedContent(result);
         setProgress(100);
+        console.log(`Content generated in ${result.generationTime}s`);
       } else {
         throw new Error(result.error || 'Generation failed');
       }

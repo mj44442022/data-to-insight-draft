@@ -8,6 +8,7 @@ interface UploadFormProps {
     description: string;
     keyMessages: string;
     tone: string;
+    contentPillar: string;
   }) => void;
   isGenerating: boolean;
   progress: number;
@@ -18,6 +19,7 @@ export default function UploadForm({ onGenerate, isGenerating, progress }: Uploa
   const [description, setDescription] = useState('');
   const [keyMessages, setKeyMessages] = useState('');
   const [tone, setTone] = useState('Professional');
+  const [contentPillar, setContentPillar] = useState('Mixed');
   const [dragActive, setDragActive] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -60,7 +62,7 @@ export default function UploadForm({ onGenerate, isGenerating, progress }: Uploa
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (images.length >= 3 && description.length >= 100 && keyMessages.length >= 20) {
-      onGenerate({ images, description, keyMessages, tone });
+      onGenerate({ images, description, keyMessages, tone, contentPillar });
     }
   };
 
@@ -199,6 +201,31 @@ export default function UploadForm({ onGenerate, isGenerating, progress }: Uploa
           <option value="Inspiring">Inspiring</option>
           <option value="Educational">Educational</option>
         </select>
+      </div>
+
+      {/* Content Pillar Selector - Shannon's 4 H's Framework */}
+      <div>
+        <label className="block text-sm font-medium text-gray-200 mb-2">
+          Content Pillar (Shannon's 4 H's Framework)
+        </label>
+        <select
+          value={contentPillar}
+          onChange={(e) => setContentPillar(e.target.value)}
+          className="w-full px-4 py-3 bg-gray-800 border border-gray-600 rounded-lg text-white focus:outline-none focus:border-primary"
+        >
+          <option value="Mixed">Mixed - Balanced approach across all pillars</option>
+          <option value="Heard">Heard - Make audience feel seen & validated</option>
+          <option value="Helpful">Helpful - Quick wins & bite-sized tips</option>
+          <option value="Humor">Humor - Relatable situations that get shared</option>
+          <option value="Happenings">Happenings - Behind-the-scenes content</option>
+        </select>
+        <p className="text-xs text-gray-500 mt-2">
+          {contentPillar === 'Heard' && '✨ Inspirational content that creates belonging and emotional connection'}
+          {contentPillar === 'Helpful' && '💡 Mini-tutorials and instant gratification tips (not 10-step guides)'}
+          {contentPillar === 'Humor' && '😄 Relatable moments that make people tag their friends'}
+          {contentPillar === 'Happenings' && '🎬 Day-in-the-life and behind-the-scenes moments'}
+          {contentPillar === 'Mixed' && '🎯 AI will blend all 4 pillars for maximum engagement'}
+        </p>
       </div>
 
       {/* Submit Button */}
