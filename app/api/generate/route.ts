@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { put } from '@vercel/blob';
 import { generateContentPlan } from '@/lib/gemini';
 import { createCarouselSlide, createReelFrame, normalizeImage } from '@/lib/image-processor';
 import { createReelVideo, createCarouselZip } from '@/lib/video-creator';
@@ -119,7 +120,7 @@ export async function POST(request: NextRequest) {
     console.log('[GENERATE] All validations passed, processing images...');
 
     // Convert images to buffers with error handling
-    let imageBuffers;
+    let imageBuffers: Buffer[];
     try {
       imageBuffers = await Promise.all(
         imageFiles.map(async (file, index) => {
@@ -173,13 +174,11 @@ export async function POST(request: NextRequest) {
     console.log('[GENERATE] Step 2/5: Creating carousel slides...');
 
     // Validate and fix image distribution for carousel
-    // Ensure images are distributed evenly, not all using the same image
     const carouselImageIndices = contentPlan.carousel.map(s => s.imageIndex);
     const uniqueCarouselImages = new Set(carouselImageIndices).size;
 
     if (uniqueCarouselImages < Math.min(3, imageBuffers.length)) {
       console.log('[GENERATE] ⚠️ Poor image distribution detected, redistributing...');
-      // Redistribute images evenly
       contentPlan.carousel.forEach((slide, index) => {
         slide.imageIndex = index % imageBuffers.length;
       });
@@ -187,7 +186,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Generate carousel slides with error handling
-    let carouselSlides;
+    let carouselSlides: Buffer[];
     try {
       carouselSlides = await Promise.all(
         contentPlan.carousel.map(async (slide, index) => {
@@ -221,10 +220,10 @@ export async function POST(request: NextRequest) {
     console.log('[GENERATE] Step 3/5: Creating carousel ZIP file...');
 
     // Create carousel ZIP with error handling
-    let carouselZip;
+    let carouselZip: Buffer;
     try {
       carouselZip = await createCarouselZip(carouselSlides);
-      console.log('[GENERATE] Carousel ZIP created');
+      console.log(`[GENERATE] Carousel ZIP created (${(carouselZip.length / 1024 / 1024).toFixed(2)}MB)`);
     } catch (error) {
       console.error('[GENERATE] ZIP creation failed:', error);
       return NextResponse.json(
@@ -252,7 +251,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Generate reel frames with error handling
-    let reelFrames;
+    let reelFrames: Buffer[];
     try {
       reelFrames = await Promise.all(
         contentPlan.reel.map(async (scene, index) => {
@@ -279,33 +278,105 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // 🗑️ GARBAGE COLLECTION: Free image buffers (no longer needed)
+    imageBuffers = null as any;
+    if (global.gc) {
+      global.gc();
+      console.log('[GENERATE] 🗑️ Garbage collection triggered after image processing');
+    }
+
     console.log('[GENERATE] Step 5/5: Creating reel video...');
 
     // Create reel video with error handling (non-blocking - video is optional)
-    let reelVideo = null;
-    let videoError = null;
+    let reelVideo: Buffer | null = null;
+    let videoError: string | null = null;
     try {
       const reelDurations = contentPlan.reel.map((scene) => scene.duration);
       reelVideo = await createReelVideo(reelFrames, reelDurations);
-      console.log('[GENERATE] Reel video created successfully');
+      console.log(`[GENERATE] Reel video created successfully (${(reelVideo.length / 1024 / 1024).toFixed(2)}MB)`);
     } catch (error) {
       console.error('[GENERATE] Video creation failed (non-blocking):', error);
       videoError = error instanceof Error ? error.message : 'Unknown error';
       console.log('[GENERATE] Continuing without video - you can still use the reel script');
     }
 
-    const totalTime = ((Date.now() - startTime) / 1000).toFixed(2);
-    console.log(`[GENERATE] Generation complete in ${totalTime}s`);
+    // 🗑️ GARBAGE COLLECTION: Free reel frames (no longer needed)
+    reelFrames = null as any;
+    if (global.gc) {
+      global.gc();
+      console.log('[GENERATE] 🗑️ Garbage collection triggered after video creation');
+    }
 
-    // Return response with files
+    console.log('[GENERATE] 🔼 Uploading carousel ZIP to Vercel Blob...');
+
+    // Upload carousel ZIP to Vercel Blob
+    let carouselZipUrl: string;
+    try {
+      const timestamp = Date.now();
+      const blob = await put(`carousels/carousel-${timestamp}.zip`, carouselZip, {
+        access: 'public',
+        contentType: 'application/zip',
+      });
+      carouselZipUrl = blob.url;
+      console.log(`[GENERATE] ✅ Carousel ZIP uploaded to: ${carouselZipUrl}`);
+    } catch (error) {
+      console.error('[GENERATE] Failed to upload carousel ZIP to Blob:', error);
+      return NextResponse.json(
+        {
+          error: 'Failed to upload carousel ZIP',
+          details: error instanceof Error ? error.message : 'Unknown error',
+          step: 'Blob Upload (Carousel)',
+        },
+        { status: 500 }
+      );
+    }
+
+    // 🗑️ GARBAGE COLLECTION: Free carousel ZIP buffer (uploaded to Blob)
+    carouselZip = null as any;
+    if (global.gc) {
+      global.gc();
+      console.log('[GENERATE] 🗑️ Garbage collection triggered after carousel upload');
+    }
+
+    // Upload reel video to Vercel Blob (if it exists)
+    let reelVideoUrl: string | null = null;
+    if (reelVideo) {
+      console.log('[GENERATE] 🔼 Uploading reel video to Vercel Blob...');
+      try {
+        const timestamp = Date.now();
+        const blob = await put(`reels/reel-${timestamp}.mp4`, reelVideo, {
+          access: 'public',
+          contentType: 'video/mp4',
+        });
+        reelVideoUrl = blob.url;
+        console.log(`[GENERATE] ✅ Reel video uploaded to: ${reelVideoUrl}`);
+      } catch (error) {
+        console.error('[GENERATE] Failed to upload reel video to Blob:', error);
+        // Don't fail the request, just log the error
+        videoError = `Upload failed: ${error instanceof Error ? error.message : 'Unknown error'}`;
+      }
+
+      // 🗑️ GARBAGE COLLECTION: Free reel video buffer (uploaded to Blob)
+      reelVideo = null;
+      if (global.gc) {
+        global.gc();
+        console.log('[GENERATE] 🗑️ Garbage collection triggered after video upload');
+      }
+    }
+
+    const totalTime = ((Date.now() - startTime) / 1000).toFixed(2);
+    console.log(`[GENERATE] ✨ Generation complete in ${totalTime}s`);
+
+    // Return response with Blob URLs (not base64)
+    // This keeps the response size tiny (<4.5MB) and fast
     return NextResponse.json({
       success: true,
       carousel: {
-        zip: carouselZip.toString('base64'),
-        slides: carouselSlides.map((slide) => slide.toString('base64')),
+        zipUrl: carouselZipUrl, // ✅ URL instead of base64
+        slides: carouselSlides.map((slide) => slide.toString('base64')), // Keep for preview
       },
       reel: {
-        video: reelVideo ? reelVideo.toString('base64') : null,
+        videoUrl: reelVideoUrl, // ✅ URL instead of base64 (or null if failed)
         script: contentPlan.reel, // Always include script for teleprompter use
         videoError: videoError, // Show if video failed
       },

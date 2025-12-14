@@ -3,7 +3,7 @@
 import { useRef } from 'react';
 
 interface PreviewReelProps {
-  videoBase64: string | null;
+  videoUrl: string | null; // ✅ URL from Vercel Blob
   script: Array<{
     sceneNumber: number;
     text: string;
@@ -13,7 +13,7 @@ interface PreviewReelProps {
   videoError?: string;
 }
 
-export default function PreviewReel({ videoBase64, script, videoError }: PreviewReelProps) {
+export default function PreviewReel({ videoUrl, script, videoError }: PreviewReelProps) {
   const videoRef = useRef<HTMLVideoElement>(null);
 
   return (
@@ -21,7 +21,7 @@ export default function PreviewReel({ videoBase64, script, videoError }: Preview
       <h3 className="text-xl font-bold text-white">Reel Preview</h3>
 
       {/* Video Player or Error Message */}
-      {videoBase64 ? (
+      {videoUrl ? (
         <div className="bg-gray-800 rounded-lg overflow-hidden max-w-md mx-auto">
           <video
             ref={videoRef}
@@ -31,7 +31,7 @@ export default function PreviewReel({ videoBase64, script, videoError }: Preview
             className="w-full"
             style={{ aspectRatio: '9/16' }}
           >
-            <source src={`data:video/mp4;base64,${videoBase64}`} type="video/mp4" />
+            <source src={videoUrl} type="video/mp4" />
             Your browser does not support the video tag.
           </video>
           <p className="text-sm text-gray-400 text-center mt-2">

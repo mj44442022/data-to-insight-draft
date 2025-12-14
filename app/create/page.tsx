@@ -9,11 +9,11 @@ import DownloadButtons from '@/components/download-buttons';
 
 interface GeneratedContent {
   carousel: {
-    zip: string;
-    slides: string[];
+    zipUrl: string; // ✅ URL from Vercel Blob
+    slides: string[]; // base64 for preview
   };
   reel: {
-    video: string | null;
+    videoUrl: string | null; // ✅ URL from Vercel Blob (or null)
     script: Array<{
       sceneNumber: number;
       text: string;
@@ -203,7 +203,7 @@ export default function CreatePage() {
 
               <div className="bg-white/5 backdrop-blur-md border border-white/10 rounded-3xl p-8 shadow-glass">
                 <PreviewReel
-                  videoBase64={generatedContent.reel.video}
+                  videoUrl={generatedContent.reel.videoUrl}
                   script={generatedContent.reel.script}
                   videoError={generatedContent.reel.videoError}
                 />
@@ -214,8 +214,8 @@ export default function CreatePage() {
             <div className="bg-gradient-to-br from-gold-500/10 to-coral-500/10 border border-gold-500/30 rounded-3xl p-10 shadow-2xl">
               <h2 className="text-2xl font-bold text-white mb-6">Download & Copy</h2>
               <DownloadButtons
-                carouselZip={generatedContent.carousel.zip}
-                reelVideo={generatedContent.reel.video}
+                carouselZipUrl={generatedContent.carousel.zipUrl}
+                reelVideoUrl={generatedContent.reel.videoUrl}
                 caption={generatedContent.caption}
                 hashtags={generatedContent.hashtags}
               />
@@ -225,7 +225,7 @@ export default function CreatePage() {
             <div className="text-center">
               <button
                 onClick={handleReset}
-                className="bg-gray-700 hover:bg-gray-600 text-white font-semibold py-3 px-8 rounded-lg transition-colors"
+                className="bg-white/10 hover:bg-white/20 text-cream font-semibold py-3 px-8 rounded-lg transition-all border border-white/20 hover:border-white/30"
               >
                 Create Another
               </button>
@@ -235,7 +235,7 @@ export default function CreatePage() {
 
         {/* Back to Home */}
         <div className="text-center mt-8">
-          <a href="/" className="text-primary hover:text-blue-400 transition-colors">
+          <a href="/" className="text-gold-500 hover:text-gold-400 transition-colors font-medium">
             ← Back to Home
           </a>
         </div>

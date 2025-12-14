@@ -3,28 +3,41 @@
 import { useState } from 'react';
 
 interface DownloadButtonsProps {
-  carouselZip: string; // Base64
-  reelVideo: string | null; // Base64 (null if video generation failed)
+  carouselZipUrl: string; // ✅ URL from Vercel Blob
+  reelVideoUrl: string | null; // ✅ URL from Vercel Blob (or null)
   caption: string;
   hashtags: string[];
 }
 
 export default function DownloadButtons({
-  carouselZip,
-  reelVideo,
+  carouselZipUrl,
+  reelVideoUrl,
   caption,
   hashtags,
 }: DownloadButtonsProps) {
   const [copiedCaption, setCopiedCaption] = useState(false);
   const [copiedHashtags, setCopiedHashtags] = useState(false);
 
-  const downloadFile = (base64: string, filename: string, mimeType: string) => {
-    const link = document.createElement('a');
-    link.href = `data:${mimeType};base64,${base64}`;
-    link.download = filename;
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
+  const downloadFileFromUrl = async (url: string, filename: string) => {
+    try {
+      // Fetch the file from the Blob URL
+      const response = await fetch(url);
+      const blob = await response.blob();
+
+      // Create a temporary link and trigger download
+      const link = document.createElement('a');
+      link.href = URL.createObjectURL(blob);
+      link.download = filename;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+
+      // Clean up the object URL
+      URL.revokeObjectURL(link.href);
+    } catch (error) {
+      console.error('Download failed:', error);
+      alert('Download failed. Please try again.');
+    }
   };
 
   const copyToClipboard = async (text: string, setCopied: (v: boolean) => void) => {
@@ -40,10 +53,8 @@ export default function DownloadButtons({
       {/* Download Buttons */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <button
-          onClick={() =>
-            downloadFile(carouselZip, `carousel-${timestamp}.zip`, 'application/zip')
-          }
-          className="flex items-center justify-center gap-2 bg-primary hover:bg-blue-600 text-white font-semibold py-3 px-6 rounded-lg transition-colors"
+          onClick={() => downloadFileFromUrl(carouselZipUrl, `carousel-${timestamp}.zip`)}
+          className="flex items-center justify-center gap-2 bg-gradient-warm hover:scale-105 text-navy-900 font-bold py-3 px-6 rounded-lg transition-all shadow-lg shadow-glow-warm"
         >
           <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path
@@ -57,14 +68,14 @@ export default function DownloadButtons({
         </button>
 
         <button
-          onClick={() => reelVideo && downloadFile(reelVideo, `reel-${timestamp}.mp4`, 'video/mp4')}
-          disabled={!reelVideo}
-          className={`flex items-center justify-center gap-2 font-semibold py-3 px-6 rounded-lg transition-colors ${
-            reelVideo
-              ? 'bg-primary hover:bg-blue-600 text-white'
-              : 'bg-gray-700 text-gray-400 cursor-not-allowed'
+          onClick={() => reelVideoUrl && downloadFileFromUrl(reelVideoUrl, `reel-${timestamp}.mp4`)}
+          disabled={!reelVideoUrl}
+          className={`flex items-center justify-center gap-2 font-bold py-3 px-6 rounded-lg transition-all shadow-lg ${
+            reelVideoUrl
+              ? 'bg-gradient-warm hover:scale-105 text-navy-900 shadow-glow-warm'
+              : 'bg-gray-800 text-gray-500 cursor-not-allowed border border-gray-700'
           }`}
-          title={!reelVideo ? 'Video generation unavailable - use the script instead' : ''}
+          title={!reelVideoUrl ? 'Video generation unavailable - use the script instead' : ''}
         >
           <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path
@@ -74,7 +85,7 @@ export default function DownloadButtons({
               d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"
             />
           </svg>
-          Download Reel (MP4) {!reelVideo && '(Unavailable)'}
+          Download Reel (MP4) {!reelVideoUrl && '(Unavailable)'}
         </button>
       </div>
 

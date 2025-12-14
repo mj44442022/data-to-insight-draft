@@ -84,8 +84,8 @@ export default function UploadForm({ onGenerate, isGenerating, progress }: Uploa
         <div
           className={`border-2 border-dashed rounded-lg p-8 text-center transition-colors ${
             dragActive
-              ? 'border-primary bg-primary/10'
-              : 'border-gray-600 hover:border-gray-500'
+              ? 'border-gold-500 bg-gold-500/10'
+              : 'border-gray-600 hover:border-gold-500/50'
           }`}
           onDragEnter={handleDrag}
           onDragLeave={handleDrag}
@@ -165,7 +165,7 @@ export default function UploadForm({ onGenerate, isGenerating, progress }: Uploa
           value={description}
           onChange={(e) => setDescription(e.target.value)}
           placeholder="We automate Instagram content creation with AI, helping founders save 20+ hours per week..."
-          className="w-full px-4 py-3 bg-gray-800 border border-gray-600 rounded-lg text-white placeholder-gray-500 focus:outline-none focus:border-primary resize-none"
+          className="w-full px-4 py-3 bg-gray-800 border border-gray-600 rounded-lg text-white placeholder-gray-500 focus:outline-none focus:border-gold-500 focus:ring-2 focus:ring-gold-500/20 resize-none transition-all"
           rows={3}
           maxLength={500}
         />
@@ -183,7 +183,7 @@ export default function UploadForm({ onGenerate, isGenerating, progress }: Uploa
           value={keyMessages}
           onChange={(e) => setKeyMessages(e.target.value)}
           placeholder="• 30X faster than manual creation&#10;• Save 20+ hours per week&#10;• Professional quality output&#10;• No design skills needed"
-          className="w-full px-4 py-3 bg-gray-800 border border-gray-600 rounded-lg text-white placeholder-gray-500 focus:outline-none focus:border-primary resize-none"
+          className="w-full px-4 py-3 bg-gray-800 border border-gray-600 rounded-lg text-white placeholder-gray-500 focus:outline-none focus:border-gold-500 focus:ring-2 focus:ring-gold-500/20 resize-none transition-all"
           rows={4}
         />
       </div>
@@ -194,7 +194,7 @@ export default function UploadForm({ onGenerate, isGenerating, progress }: Uploa
         <select
           value={tone}
           onChange={(e) => setTone(e.target.value)}
-          className="w-full px-4 py-3 bg-gray-800 border border-gray-600 rounded-lg text-white focus:outline-none focus:border-primary"
+          className="w-full px-4 py-3 bg-gray-800 border border-gray-600 rounded-lg text-white focus:outline-none focus:border-gold-500 focus:ring-2 focus:ring-gold-500/20 transition-all"
         >
           <option value="Professional">Professional</option>
           <option value="Casual">Casual</option>
@@ -211,7 +211,7 @@ export default function UploadForm({ onGenerate, isGenerating, progress }: Uploa
         <select
           value={contentPillar}
           onChange={(e) => setContentPillar(e.target.value)}
-          className="w-full px-4 py-3 bg-gray-800 border border-gray-600 rounded-lg text-white focus:outline-none focus:border-primary"
+          className="w-full px-4 py-3 bg-gray-800 border border-gray-600 rounded-lg text-white focus:outline-none focus:border-gold-500 focus:ring-2 focus:ring-gold-500/20 transition-all"
         >
           <option value="Mixed">Mixed - Balanced approach across all pillars</option>
           <option value="Heard">Heard - Make audience feel seen & validated</option>
@@ -232,10 +232,10 @@ export default function UploadForm({ onGenerate, isGenerating, progress }: Uploa
       <button
         type="submit"
         disabled={!isValid}
-        className={`w-full py-4 rounded-lg font-semibold text-lg transition-all ${
+        className={`w-full py-4 rounded-lg font-bold text-lg transition-all shadow-lg ${
           isValid
-            ? 'bg-primary hover:bg-blue-600 text-white'
-            : 'bg-gray-700 text-gray-500 cursor-not-allowed'
+            ? 'bg-gradient-warm hover:scale-105 text-navy-900 shadow-glow-warm'
+            : 'bg-gray-800 text-gray-500 cursor-not-allowed border border-gray-700'
         }`}
       >
         {isGenerating ? 'Generating...' : 'Generate Content'}
@@ -246,7 +246,7 @@ export default function UploadForm({ onGenerate, isGenerating, progress }: Uploa
         <div className="space-y-2">
           <div className="w-full bg-gray-700 rounded-full h-2">
             <div
-              className="bg-primary h-2 rounded-full transition-all duration-300"
+              className="bg-gradient-warm h-2 rounded-full transition-all duration-300 shadow-glow-gold"
               style={{ width: `${progress}%` }}
             />
           </div>
