@@ -214,6 +214,10 @@ Generate:
    - Slides 2-9: Value points following ${contentPillar} pillar (max 70 chars each)
    - Slide 10: Clear, actionable CTA (max 40 chars)
    - Each slide text should feel personal and conversational
+   - **CRITICAL**: You MUST distribute images EVENLY across all 10 slides
+   - Use ALL ${images.length} images at least once
+   - Pattern: Cycle through images (0,1,2,0,1,2...) or distribute strategically
+   - NEVER use the same image more than 2 times in a row
 
 2. Reel script (5-7 scenes, keep TOTAL under 10 seconds):
    - Scene 1: Powerful hook with REP formula (0.8-1.5 seconds, max 35 chars)
@@ -221,6 +225,8 @@ Generate:
    - Final scene: Clear CTA (1.0-1.5 seconds, max 35 chars)
    - Use "I/my/me" voice throughout
    - Make it tag-worthy and shareable
+   - **CRITICAL**: Distribute images across ALL scenes - use different images for variety
+   - Cycle through available images (0,1,2,0,1...) to create visual variety
 
 3. Instagram caption (150 words, ${tone} tone):
    - Start with the hook from the video
@@ -230,13 +236,20 @@ Generate:
 
 4. Hashtags (15 relevant, trending-ready tags)
 
-CRITICAL REQUIREMENTS:
+CRITICAL IMAGE DISTRIBUTION RULES:
+- You have ${images.length} images available (indices 0-${images.length - 1})
+- MUST cycle through ALL images evenly
+- DO NOT repeat the same image more than twice consecutively
+- Example for 3 images: [0,1,2,0,1,2,0,1,2,0] ✅
+- Example WRONG: [0,0,0,1,1,1,2,2,2,0] ❌
+- Example WRONG: [0,0,0,0,0,0,0,0,0,0] ❌
+
+TEXT REQUIREMENTS:
 - Text must be PUNCHY and CONVERSATIONAL (like texting a friend)
 - Include ${contentPillar} pillar principles
 - Use REP formula in hooks
 - Keep reel UNDER 10 SECONDS total
 - Make it shareable and tag-worthy
-- Use the provided images intelligently (reference image index 0-${images.length - 1})
 
 Return ONLY valid JSON in this exact format:
 {

@@ -172,6 +172,20 @@ export async function POST(request: NextRequest) {
 
     console.log('[GENERATE] Step 2/5: Creating carousel slides...');
 
+    // Validate and fix image distribution for carousel
+    // Ensure images are distributed evenly, not all using the same image
+    const carouselImageIndices = contentPlan.carousel.map(s => s.imageIndex);
+    const uniqueCarouselImages = new Set(carouselImageIndices).size;
+
+    if (uniqueCarouselImages < Math.min(3, imageBuffers.length)) {
+      console.log('[GENERATE] ⚠️ Poor image distribution detected, redistributing...');
+      // Redistribute images evenly
+      contentPlan.carousel.forEach((slide, index) => {
+        slide.imageIndex = index % imageBuffers.length;
+      });
+      console.log('[GENERATE] ✅ Images redistributed for variety');
+    }
+
     // Generate carousel slides with error handling
     let carouselSlides;
     try {
@@ -179,7 +193,7 @@ export async function POST(request: NextRequest) {
         contentPlan.carousel.map(async (slide, index) => {
           try {
             const imageIndex = slide.imageIndex % imageBuffers.length;
-            console.log(`[GENERATE] Creating carousel slide ${index + 1}/10`);
+            console.log(`[GENERATE] Creating carousel slide ${index + 1}/10 with image ${imageIndex}`);
             return createCarouselSlide(
               imageBuffers[imageIndex],
               slide.text,
@@ -225,6 +239,18 @@ export async function POST(request: NextRequest) {
 
     console.log('[GENERATE] Step 4/5: Creating reel frames...');
 
+    // Validate and fix image distribution for reel
+    const reelImageIndices = contentPlan.reel.map(s => s.imageIndex);
+    const uniqueReelImages = new Set(reelImageIndices).size;
+
+    if (uniqueReelImages < Math.min(2, imageBuffers.length)) {
+      console.log('[GENERATE] ⚠️ Poor reel image distribution detected, redistributing...');
+      contentPlan.reel.forEach((scene, index) => {
+        scene.imageIndex = index % imageBuffers.length;
+      });
+      console.log('[GENERATE] ✅ Reel images redistributed for variety');
+    }
+
     // Generate reel frames with error handling
     let reelFrames;
     try {
@@ -232,7 +258,7 @@ export async function POST(request: NextRequest) {
         contentPlan.reel.map(async (scene, index) => {
           try {
             const imageIndex = scene.imageIndex % imageBuffers.length;
-            console.log(`[GENERATE] Creating reel frame ${index + 1}/${contentPlan.reel.length}`);
+            console.log(`[GENERATE] Creating reel frame ${index + 1}/${contentPlan.reel.length} with image ${imageIndex}`);
             return createReelFrame(imageBuffers[imageIndex], scene.text);
           } catch (error) {
             console.error(`[GENERATE] Failed to create reel frame ${index + 1}:`, error);

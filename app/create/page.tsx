@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import Link from 'next/link';
 import UploadForm from '@/components/upload-form';
 import PreviewCarousel from '@/components/preview-carousel';
 import PreviewReel from '@/components/preview-reel';
@@ -102,15 +103,30 @@ export default function CreatePage() {
   };
 
   return (
-    <div className="min-h-screen bg-background py-12 px-4">
-      <div className="max-w-4xl mx-auto">
-        {/* Header */}
+    <div className="min-h-screen bg-gradient-premium">
+      {/* Sticky Header matching landing page */}
+      <header className="fixed top-0 left-0 right-0 z-50 bg-navy-900/95 backdrop-blur-lg border-b border-white/10">
+        <div className="max-w-7xl mx-auto px-6 py-4 flex items-center justify-between">
+          <Link href="/" className="font-display text-2xl font-bold bg-gradient-warm bg-clip-text text-transparent">
+            ContentOS
+          </Link>
+          <div className="text-sm text-gray-400">
+            ✨ AI-Powered Instagram Content Generator
+          </div>
+        </div>
+      </header>
+
+      <div className="max-w-6xl mx-auto pt-28 pb-12 px-4">
+        {/* Header with gradient */}
         <div className="text-center mb-12">
-          <h1 className="text-4xl font-bold text-white mb-3">
-            Create Instagram Content
+          <h1 className="font-display text-5xl md:text-6xl font-bold text-cream mb-4 leading-tight">
+            Create{' '}
+            <span className="bg-gradient-warm bg-clip-text text-transparent">
+              Instagram Content
+            </span>
           </h1>
-          <p className="text-gray-400 text-lg">
-            Upload photos and let AI create your carousel and reel in minutes
+          <p className="text-cream/70 text-xl max-w-2xl mx-auto">
+            Upload your photos and let AI create professional carousels & reels in minutes
           </p>
         </div>
 
@@ -141,7 +157,7 @@ export default function CreatePage() {
 
         {/* Main Content */}
         {!generatedContent ? (
-          <div className="bg-gray-900 rounded-xl p-8 shadow-2xl">
+          <div className="bg-white/5 backdrop-blur-md border border-white/10 rounded-3xl p-10 shadow-2xl">
             <UploadForm
               onGenerate={handleGenerate}
               isGenerating={isGenerating}
@@ -151,34 +167,41 @@ export default function CreatePage() {
         ) : (
           <div className="space-y-8">
             {/* Success Message */}
-            <div className="bg-green-900/20 border border-green-500 rounded-lg p-4">
+            <div className="bg-gradient-to-r from-sage-500/20 to-gold-500/20 border border-sage-500/50 rounded-2xl p-6 shadow-glow-warm">
               <div className="flex items-center gap-3">
-                <svg
-                  className="w-5 h-5 text-green-500"
-                  fill="none"
-                  stroke="currentColor"
-                  viewBox="0 0 24 24"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                    d="M5 13l4 4L19 7"
-                  />
-                </svg>
-                <p className="text-green-500 font-semibold">
-                  Content generated successfully!
-                </p>
+                <div className="w-10 h-10 bg-sage-500 rounded-full flex items-center justify-center">
+                  <svg
+                    className="w-6 h-6 text-navy-900"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={3}
+                      d="M5 13l4 4L19 7"
+                    />
+                  </svg>
+                </div>
+                <div>
+                  <p className="text-sage-400 font-bold text-lg">
+                    🎉 Content Generated Successfully!
+                  </p>
+                  <p className="text-cream/60 text-sm">
+                    Your professional carousel and reel are ready to download
+                  </p>
+                </div>
               </div>
             </div>
 
             {/* Preview Grid */}
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-              <div className="bg-gray-900 rounded-xl p-6">
+              <div className="bg-white/5 backdrop-blur-md border border-white/10 rounded-3xl p-8 shadow-glass">
                 <PreviewCarousel slides={generatedContent.carousel.slides} />
               </div>
 
-              <div className="bg-gray-900 rounded-xl p-6">
+              <div className="bg-white/5 backdrop-blur-md border border-white/10 rounded-3xl p-8 shadow-glass">
                 <PreviewReel
                   videoBase64={generatedContent.reel.video}
                   script={generatedContent.reel.script}
@@ -188,7 +211,7 @@ export default function CreatePage() {
             </div>
 
             {/* Download Section */}
-            <div className="bg-gray-900 rounded-xl p-8">
+            <div className="bg-gradient-to-br from-gold-500/10 to-coral-500/10 border border-gold-500/30 rounded-3xl p-10 shadow-2xl">
               <h2 className="text-2xl font-bold text-white mb-6">Download & Copy</h2>
               <DownloadButtons
                 carouselZip={generatedContent.carousel.zip}

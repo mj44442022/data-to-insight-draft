@@ -3,8 +3,27 @@ import Link from 'next/link';
 export default function Home() {
   return (
     <div className="min-h-screen bg-gradient-premium text-cream">
+      {/* Sticky Header with CTA */}
+      <header className="fixed top-0 left-0 right-0 z-50 bg-navy-900/95 backdrop-blur-lg border-b border-white/10">
+        <div className="max-w-7xl mx-auto px-6 py-4 flex items-center justify-between">
+          <div className="font-display text-2xl font-bold bg-gradient-warm bg-clip-text text-transparent">
+            ContentOS
+          </div>
+          <Link
+            href="/create"
+            className="group relative inline-flex items-center gap-2"
+          >
+            <div className="absolute inset-0 bg-gradient-warm rounded-lg blur-lg opacity-60 group-hover:opacity-100 transition-opacity"></div>
+            <div className="relative bg-gradient-warm text-navy-900 font-bold px-6 py-3 rounded-lg transition-all transform group-hover:scale-105 shadow-lg">
+              Create Content
+              <span className="ml-2">→</span>
+            </div>
+          </Link>
+        </div>
+      </header>
+
       {/* Hero Section - Cinematic & Tall */}
-      <section className="relative overflow-hidden py-32 px-6 min-h-[90vh] flex items-center">
+      <section className="relative overflow-hidden pt-40 pb-32 px-6 min-h-screen flex items-center">
         {/* Subtle pattern overlay */}
         <div className="absolute inset-0 opacity-5">
           <div className="absolute inset-0" style={{
