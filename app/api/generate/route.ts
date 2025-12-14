@@ -255,22 +255,17 @@ export async function POST(request: NextRequest) {
 
     console.log('[GENERATE] Step 5/5: Creating reel video...');
 
-    // Create reel video with error handling
-    let reelVideo;
+    // Create reel video with error handling (non-blocking - video is optional)
+    let reelVideo = null;
+    let videoError = null;
     try {
       const reelDurations = contentPlan.reel.map((scene) => scene.duration);
       reelVideo = await createReelVideo(reelFrames, reelDurations);
-      console.log('[GENERATE] Reel video created');
+      console.log('[GENERATE] Reel video created successfully');
     } catch (error) {
-      console.error('[GENERATE] Video creation failed:', error);
-      return NextResponse.json(
-        {
-          error: 'Failed to create reel video',
-          details: error instanceof Error ? error.message : 'Unknown error. Make sure FFmpeg is installed.',
-          step: 'Video Creation',
-        },
-        { status: 500 }
-      );
+      console.error('[GENERATE] Video creation failed (non-blocking):', error);
+      videoError = error instanceof Error ? error.message : 'Unknown error';
+      console.log('[GENERATE] Continuing without video - you can still use the reel script');
     }
 
     const totalTime = ((Date.now() - startTime) / 1000).toFixed(2);
@@ -284,7 +279,9 @@ export async function POST(request: NextRequest) {
         slides: carouselSlides.map((slide) => slide.toString('base64')),
       },
       reel: {
-        video: reelVideo.toString('base64'),
+        video: reelVideo ? reelVideo.toString('base64') : null,
+        script: contentPlan.reel, // Always include script for teleprompter use
+        videoError: videoError, // Show if video failed
       },
       caption: contentPlan.caption,
       hashtags: contentPlan.hashtags,
