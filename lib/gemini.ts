@@ -36,7 +36,7 @@ export async function generateContentPlan(
     throw new Error('GOOGLE_AI_API_KEY is not set. Please add it to your .env.local file.');
   }
 
-  const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash-latest' });
+  const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' });
 
   // Shannon's 4 H's Framework guidance based on pillar
   const frameworkGuidance = {
