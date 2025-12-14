@@ -4,7 +4,7 @@ import { useState } from 'react';
 
 interface DownloadButtonsProps {
   carouselZip: string; // Base64
-  reelVideo: string; // Base64
+  reelVideo: string | null; // Base64 (null if video generation failed)
   caption: string;
   hashtags: string[];
 }
@@ -57,8 +57,14 @@ export default function DownloadButtons({
         </button>
 
         <button
-          onClick={() => downloadFile(reelVideo, `reel-${timestamp}.mp4`, 'video/mp4')}
-          className="flex items-center justify-center gap-2 bg-primary hover:bg-blue-600 text-white font-semibold py-3 px-6 rounded-lg transition-colors"
+          onClick={() => reelVideo && downloadFile(reelVideo, `reel-${timestamp}.mp4`, 'video/mp4')}
+          disabled={!reelVideo}
+          className={`flex items-center justify-center gap-2 font-semibold py-3 px-6 rounded-lg transition-colors ${
+            reelVideo
+              ? 'bg-primary hover:bg-blue-600 text-white'
+              : 'bg-gray-700 text-gray-400 cursor-not-allowed'
+          }`}
+          title={!reelVideo ? 'Video generation unavailable - use the script instead' : ''}
         >
           <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path
@@ -68,7 +74,7 @@ export default function DownloadButtons({
               d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"
             />
           </svg>
-          Download Reel (MP4)
+          Download Reel (MP4) {!reelVideo && '(Unavailable)'}
         </button>
       </div>
 

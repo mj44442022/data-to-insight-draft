@@ -12,7 +12,14 @@ interface GeneratedContent {
     slides: string[];
   };
   reel: {
-    video: string;
+    video: string | null;
+    script: Array<{
+      sceneNumber: number;
+      text: string;
+      imageIndex: number;
+      duration: number;
+    }>;
+    videoError?: string;
   };
   caption: string;
   hashtags: string[];
@@ -172,7 +179,11 @@ export default function CreatePage() {
               </div>
 
               <div className="bg-gray-900 rounded-xl p-6">
-                <PreviewReel videoBase64={generatedContent.reel.video} />
+                <PreviewReel
+                  videoBase64={generatedContent.reel.video}
+                  script={generatedContent.reel.script}
+                  videoError={generatedContent.reel.videoError}
+                />
               </div>
             </div>
 
