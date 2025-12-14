@@ -4,6 +4,96 @@ import { GoogleGenerativeAI } from '@google/generative-ai';
 const apiKey = process.env.GOOGLE_AI_API_KEY || 'placeholder-key-for-build';
 const genAI = new GoogleGenerativeAI(apiKey);
 
+// Model validation cache
+let validatedModel: string | null = null;
+let modelValidationAttempted = false;
+
+/**
+ * Validates that a Gemini model exists and is available for content generation.
+ * Falls back to known working models if the preferred model is not available.
+ */
+async function getValidatedModel(): Promise<string> {
+  // Return cached model if already validated
+  if (validatedModel) {
+    return validatedModel;
+  }
+
+  // Don't validate during build time
+  if (apiKey === 'placeholder-key-for-build') {
+    return 'gemini-1.5-flash-001'; // Default for build
+  }
+
+  // Only attempt validation once to avoid repeated failures
+  if (modelValidationAttempted) {
+    throw new Error('Model validation failed previously. Please check your API key and available models.');
+  }
+
+  modelValidationAttempted = true;
+
+  try {
+    console.log('[GEMINI] Validating available models...');
+
+    // Fetch available models using REST API
+    const response = await fetch(
+      `https://generativelanguage.googleapis.com/v1beta/models?key=${apiKey}`
+    );
+
+    if (!response.ok) {
+      throw new Error(`Failed to fetch models: ${response.status} ${response.statusText}`);
+    }
+
+    const data = await response.json();
+
+    if (!data.models || !Array.isArray(data.models)) {
+      throw new Error('Invalid response from models API');
+    }
+
+    // Filter models that support generateContent
+    const availableModels = data.models
+      .filter((m: any) => m.supportedGenerationMethods?.includes('generateContent'))
+      .map((m: any) => m.name.replace('models/', ''));
+
+    console.log('[GEMINI] Available models:', availableModels.join(', '));
+
+    // Preferred models in order of preference
+    const preferredModels = [
+      'gemini-1.5-flash-001',
+      'gemini-1.5-flash',
+      'gemini-1.5-flash-latest',
+      'gemini-pro-vision',
+      'gemini-pro'
+    ];
+
+    // Find the first available preferred model
+    for (const preferred of preferredModels) {
+      if (availableModels.includes(preferred)) {
+        validatedModel = preferred;
+        console.log('[GEMINI] Using validated model:', validatedModel);
+        return validatedModel;
+      }
+    }
+
+    // If no preferred model found, use the first available multimodal model
+    const multimodalModel = availableModels.find((m: string) =>
+      m.includes('flash') || m.includes('vision') || m.includes('pro')
+    );
+
+    if (multimodalModel && typeof multimodalModel === 'string') {
+      validatedModel = multimodalModel;
+      console.log('[GEMINI] Using fallback model:', validatedModel);
+      return validatedModel;
+    }
+
+    throw new Error('No suitable Gemini models available for content generation');
+  } catch (error) {
+    console.error('[GEMINI] Model validation failed:', error);
+    throw new Error(
+      `Failed to validate Gemini model: ${error instanceof Error ? error.message : 'Unknown error'}. ` +
+      'Please check your API key at https://aistudio.google.com/app/apikey and ensure the Generative Language API is enabled.'
+    );
+  }
+}
+
 export interface CarouselSlide {
   slideNumber: number;
   text: string;
@@ -36,7 +126,9 @@ export async function generateContentPlan(
     throw new Error('GOOGLE_AI_API_KEY is not set. Please add it to your .env.local file.');
   }
 
-  const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash-001' });
+  // Validate and get the best available model
+  const modelName = await getValidatedModel();
+  const model = genAI.getGenerativeModel({ model: modelName });
 
   // Shannon's 4 H's Framework guidance based on pillar
   const frameworkGuidance = {
