@@ -236,8 +236,8 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    console.log('[GENERATE] Step 4/5: Creating reel frames...');
-
+    // 🎯 STRATEGIC PIVOT: Skip reel frame/video generation - focus on carousel + script only
+    // console.log('[GENERATE] Step 4/5: Creating reel frames...');
     // Validate and fix image distribution for reel
     const reelImageIndices = contentPlan.reel.map(s => s.imageIndex);
     const uniqueReelImages = new Set(reelImageIndices).size;
@@ -247,65 +247,47 @@ export async function POST(request: NextRequest) {
       contentPlan.reel.forEach((scene, index) => {
         scene.imageIndex = index % imageBuffers.length;
       });
-      console.log('[GENERATE] ✅ Reel images redistributed for variety');
+      console.log('[GENERATE] ✅ Reel images redistributed for script visual notes');
     }
 
+    // 🎯 REEL FRAMES GENERATION DISABLED - Not needed for script-only approach
     // Generate reel frames with error handling
-    let reelFrames: Buffer[];
-    try {
-      reelFrames = await Promise.all(
-        contentPlan.reel.map(async (scene, index) => {
-          try {
-            const imageIndex = scene.imageIndex % imageBuffers.length;
-            console.log(`[GENERATE] Creating reel frame ${index + 1}/${contentPlan.reel.length} with image ${imageIndex}`);
-            return createReelFrame(imageBuffers[imageIndex], scene.text);
-          } catch (error) {
-            console.error(`[GENERATE] Failed to create reel frame ${index + 1}:`, error);
-            throw new Error(`Failed to create reel frame ${index + 1}: ${error instanceof Error ? error.message : 'Unknown error'}`);
-          }
-        })
-      );
-      console.log('[GENERATE] All reel frames created');
-    } catch (error) {
-      console.error('[GENERATE] Reel frame creation failed:', error);
-      return NextResponse.json(
-        {
-          error: 'Failed to create reel frames',
-          details: error instanceof Error ? error.message : 'Unknown error',
-          step: 'Reel Frame Creation',
-        },
-        { status: 500 }
-      );
-    }
+    // let reelFrames: Buffer[];
+    // try {
+    //   reelFrames = await Promise.all(
+    //     contentPlan.reel.map(async (scene, index) => {
+    //       try {
+    //         const imageIndex = scene.imageIndex % imageBuffers.length;
+    //         console.log(`[GENERATE] Creating reel frame ${index + 1}/${contentPlan.reel.length} with image ${imageIndex}`);
+    //         return createReelFrame(imageBuffers[imageIndex], scene.text);
+    //       } catch (error) {
+    //         console.error(`[GENERATE] Failed to create reel frame ${index + 1}:`, error);
+    //         throw new Error(`Failed to create reel frame ${index + 1}: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    //       }
+    //     })
+    //   );
+    //   console.log('[GENERATE] All reel frames created');
+    // } catch (error) {
+    //   console.error('[GENERATE] Reel frame creation failed:', error);
+    //   return NextResponse.json(
+    //     {
+    //       error: 'Failed to create reel frames',
+    //       details: error instanceof Error ? error.message : 'Unknown error',
+    //       step: 'Reel Frame Creation',
+    //     },
+    //     { status: 500 }
+    //   );
+    // }
 
     // 🗑️ GARBAGE COLLECTION: Free image buffers (no longer needed)
     imageBuffers = null as any;
     if (global.gc) {
       global.gc();
-      console.log('[GENERATE] 🗑️ Garbage collection triggered after image processing');
+      console.log('[GENERATE] 🗑️ Garbage collection triggered after carousel generation');
     }
 
-    console.log('[GENERATE] Step 5/5: Creating reel video...');
-
-    // Create reel video with error handling (non-blocking - video is optional)
-    let reelVideo: Buffer | null = null;
-    let videoError: string | null = null;
-    try {
-      const reelDurations = contentPlan.reel.map((scene) => scene.duration);
-      reelVideo = await createReelVideo(reelFrames, reelDurations);
-      console.log(`[GENERATE] Reel video created successfully (${(reelVideo.length / 1024 / 1024).toFixed(2)}MB)`);
-    } catch (error) {
-      console.error('[GENERATE] Video creation failed (non-blocking):', error);
-      videoError = error instanceof Error ? error.message : 'Unknown error';
-      console.log('[GENERATE] Continuing without video - you can still use the reel script');
-    }
-
-    // 🗑️ GARBAGE COLLECTION: Free reel frames (no longer needed)
-    reelFrames = null as any;
-    if (global.gc) {
-      global.gc();
-      console.log('[GENERATE] 🗑️ Garbage collection triggered after video creation');
-    }
+    console.log('[GENERATE] Step 4/4: Preparing reel script with visual direction notes...');
+    console.log('[GENERATE] ✅ Reel script ready with visual direction notes (frames/video generation disabled)');
 
     console.log('[GENERATE] 🔼 Uploading carousel ZIP to Vercel Blob...');
 
@@ -338,31 +320,34 @@ export async function POST(request: NextRequest) {
       console.log('[GENERATE] 🗑️ Garbage collection triggered after carousel upload');
     }
 
+    // 🎯 VIDEO GENERATION DISABLED - Focus on carousel + script only
     // Upload reel video to Vercel Blob (if it exists)
-    let reelVideoUrl: string | null = null;
-    if (reelVideo) {
-      console.log('[GENERATE] 🔼 Uploading reel video to Vercel Blob...');
-      try {
-        const timestamp = Date.now();
-        const blob = await put(`reels/reel-${timestamp}.mp4`, reelVideo, {
-          access: 'public',
-          contentType: 'video/mp4',
-        });
-        reelVideoUrl = blob.url;
-        console.log(`[GENERATE] ✅ Reel video uploaded to: ${reelVideoUrl}`);
-      } catch (error) {
-        console.error('[GENERATE] Failed to upload reel video to Blob:', error);
-        // Don't fail the request, just log the error
-        videoError = `Upload failed: ${error instanceof Error ? error.message : 'Unknown error'}`;
-      }
+    // let reelVideoUrl: string | null = null;
+    // if (reelVideo) {
+    //   console.log('[GENERATE] 🔼 Uploading reel video to Vercel Blob...');
+    //   try {
+    //     const timestamp = Date.now();
+    //     const blob = await put(`reels/reel-${timestamp}.mp4`, reelVideo, {
+    //       access: 'public',
+    //       contentType: 'video/mp4',
+    //     });
+    //     reelVideoUrl = blob.url;
+    //     console.log(`[GENERATE] ✅ Reel video uploaded to: ${reelVideoUrl}`);
+    //   } catch (error) {
+    //     console.error('[GENERATE] Failed to upload reel video to Blob:', error);
+    //     // Don't fail the request, just log the error
+    //     videoError = `Upload failed: ${error instanceof Error ? error.message : 'Unknown error'}`;
+    //   }
 
-      // 🗑️ GARBAGE COLLECTION: Free reel video buffer (uploaded to Blob)
-      reelVideo = null;
-      if (global.gc) {
-        global.gc();
-        console.log('[GENERATE] 🗑️ Garbage collection triggered after video upload');
-      }
-    }
+    //   // 🗑️ GARBAGE COLLECTION: Free reel video buffer (uploaded to Blob)
+    //   reelVideo = null;
+    //   if (global.gc) {
+    //     global.gc();
+    //     console.log('[GENERATE] 🗑️ Garbage collection triggered after video upload');
+    //   }
+    // }
+
+    const reelVideoUrl: string | null = null; // Video generation disabled
 
     const totalTime = ((Date.now() - startTime) / 1000).toFixed(2);
     console.log(`[GENERATE] ✨ Generation complete in ${totalTime}s`);
@@ -376,9 +361,9 @@ export async function POST(request: NextRequest) {
         slides: carouselSlides.map((slide) => slide.toString('base64')), // Keep for preview
       },
       reel: {
-        videoUrl: reelVideoUrl, // ✅ URL instead of base64 (or null if failed)
-        script: contentPlan.reel, // Always include script for teleprompter use
-        videoError: videoError, // Show if video failed
+        videoUrl: null, // Video generation disabled - focus on script only
+        script: contentPlan.reel, // Professional teleprompter script with visual notes
+        videoError: 'Video generation disabled - use script for recording', // Explanation
       },
       caption: contentPlan.caption,
       hashtags: contentPlan.hashtags,

@@ -1,269 +1,200 @@
-import satori from 'satori';
 import sharp from 'sharp';
-import React from 'react';
 
-// Font loading for Satori
-let interFont: ArrayBuffer | null = null;
-let interBoldFont: ArrayBuffer | null = null;
+/**
+ * Create a carousel slide by compositing text over an image
+ * Creates NEW images based on the uploaded ones
+ */
+export async function createCarouselSlide(
+  imageBuffer: Buffer,
+  text: string,
+  slideNumber: number
+): Promise<Buffer> {
+  // Resize and prepare base image
+  const baseImage = await sharp(imageBuffer)
+    .resize(1080, 1080, {
+      fit: 'cover',
+      position: 'center'
+    })
+    .toBuffer();
 
-async function loadFonts() {
-  if (!interFont || !interBoldFont) {
-    // Load fonts from Google Fonts or local files
-    // For production, you should bundle these fonts or load from CDN
-    const [regular, bold] = await Promise.all([
-      fetch('https://fonts.gstatic.com/s/inter/v13/UcCO3FwrK3iLTeHuS_fvQtMwCp50KnMw2boKoduKmMEVuLyfAZ9hiA.woff').then(res => res.arrayBuffer()),
-      fetch('https://fonts.gstatic.com/s/inter/v13/UcCO3FwrK3iLTeHuS_fvQtMwCp50KnMw2boKoduKmMEVuFuYAZ9hiA.woff').then(res => res.arrayBuffer()),
-    ]);
-    interFont = regular;
-    interBoldFont = bold;
-  }
-  return { interFont, interBoldFont };
-}
+  // Create dark overlay
+  const overlay = Buffer.from(
+    `<svg width="1080" height="1080">
+      <rect width="1080" height="1080" fill="rgba(0,0,0,0.5)"/>
+    </svg>`
+  );
 
-function wrapText(text: string, maxLength: number = 35): string[] {
+  // Word wrap text for better display
   const words = text.split(' ');
   const lines: string[] = [];
   let currentLine = '';
+  const maxCharsPerLine = 30;
 
   for (const word of words) {
     const testLine = currentLine ? `${currentLine} ${word}` : word;
-    if (testLine.length > maxLength && currentLine) {
+    if (testLine.length > maxCharsPerLine && currentLine) {
       lines.push(currentLine);
       currentLine = word;
     } else {
       currentLine = testLine;
     }
   }
+  if (currentLine) lines.push(currentLine);
 
-  if (currentLine) {
-    lines.push(currentLine);
-  }
+  // Create text SVG overlay with wrapped text
+  const textY = 540 - (lines.length * 40); // Center vertically
+  const textSvg = `
+    <svg width="1080" height="1080">
+      <defs>
+        <filter id="shadow" x="-50%" y="-50%" width="200%" height="200%">
+          <feGaussianBlur in="SourceAlpha" stdDeviation="4"/>
+          <feOffset dx="2" dy="2" result="offsetblur"/>
+          <feComponentTransfer>
+            <feFuncA type="linear" slope="0.8"/>
+          </feComponentTransfer>
+          <feMerge>
+            <feMergeNode/>
+            <feMergeNode in="SourceGraphic"/>
+          </feMerge>
+        </filter>
+      </defs>
+      ${lines.map((line, i) => `
+        <text
+          x="540"
+          y="${textY + (i * 80)}"
+          font-family="Arial, sans-serif"
+          font-size="64"
+          font-weight="bold"
+          fill="white"
+          text-anchor="middle"
+          filter="url(#shadow)"
+        >${escapeXml(line)}</text>
+      `).join('')}
+      <text
+        x="1020"
+        y="1040"
+        font-family="Arial, sans-serif"
+        font-size="32"
+        fill="white"
+        text-anchor="end"
+        opacity="0.7"
+      >${slideNumber}/10</text>
+    </svg>
+  `;
 
-  return lines;
-}
-
-export async function createCarouselSlide(
-  imageBuffer: Buffer,
-  text: string,
-  slideNumber: number
-): Promise<Buffer> {
-  const fonts = await loadFonts();
-  const lines = wrapText(text, 30);
-
-  // Convert image to base64 for embedding
-  const imageBase64 = imageBuffer.toString('base64');
-  const imageSrc = `data:image/jpeg;base64,${imageBase64}`;
-
-  // Create JSX for the slide using React.createElement
-  const element = React.createElement(
-    'div',
-    {
-      style: {
-        width: '1080px',
-        height: '1080px',
-        display: 'flex',
-        position: 'relative',
-        alignItems: 'center',
-        justifyContent: 'center',
-        backgroundImage: `url(${imageSrc})`,
-        backgroundSize: 'cover',
-        backgroundPosition: 'center',
-      },
-    },
-    [
-      // Dark overlay
-      React.createElement('div', {
-        key: 'overlay',
-        style: {
-          position: 'absolute',
-          inset: 0,
-          backgroundColor: 'rgba(0, 0, 0, 0.5)',
-        },
-      }),
-      // Text container
-      React.createElement(
-        'div',
-        {
-          key: 'text-container',
-          style: {
-            position: 'relative',
-            display: 'flex',
-            flexDirection: 'column',
-            alignItems: 'center',
-            justifyContent: 'center',
-            padding: '80px',
-            textAlign: 'center',
-            gap: '20px',
-          },
-        },
-        lines.map((line, i) =>
-          React.createElement(
-            'div',
-            {
-              key: `line-${i}`,
-              style: {
-                fontSize: '64px',
-                fontWeight: 900,
-                color: 'white',
-                textShadow: '4px 4px 8px rgba(0, 0, 0, 0.8)',
-                lineHeight: 1.2,
-              },
-            },
-            line
-          )
-        )
-      ),
-      // Slide number
-      React.createElement(
-        'div',
-        {
-          key: 'slide-number',
-          style: {
-            position: 'absolute',
-            bottom: '40px',
-            right: '40px',
-            fontSize: '32px',
-            color: 'white',
-            opacity: 0.7,
-          },
-        },
-        `${slideNumber}/10`
-      ),
-    ]
-  );
-
-  // Convert JSX to SVG using Satori
-  const svg = await satori(element, {
-    width: 1080,
-    height: 1080,
-    fonts: [
-      {
-        name: 'Inter',
-        data: fonts.interFont!,
-        weight: 400,
-        style: 'normal',
-      },
-      {
-        name: 'Inter',
-        data: fonts.interBoldFont!,
-        weight: 900,
-        style: 'normal',
-      },
-    ],
-  });
-
-  // Convert SVG to PNG using Sharp (better compatibility)
-  const pngBuffer = await sharp(Buffer.from(svg))
+  // Composite all layers
+  const result = await sharp(baseImage)
+    .composite([
+      { input: overlay, blend: 'over' },
+      { input: Buffer.from(textSvg), blend: 'over' }
+    ])
     .png()
     .toBuffer();
 
-  return pngBuffer;
+  return result;
 }
 
+/**
+ * Create a reel frame (9:16 aspect ratio)
+ * Creates NEW images based on the uploaded ones
+ */
 export async function createReelFrame(
   imageBuffer: Buffer,
   text: string
 ): Promise<Buffer> {
-  const fonts = await loadFonts();
-  const lines = wrapText(text, 30);
+  // Resize and prepare base image for reel (9:16)
+  const baseImage = await sharp(imageBuffer)
+    .resize(1080, 1920, {
+      fit: 'cover',
+      position: 'center'
+    })
+    .toBuffer();
 
-  // Convert image to base64 for embedding
-  const imageBase64 = imageBuffer.toString('base64');
-  const imageSrc = `data:image/jpeg;base64,${imageBase64}`;
-
-  // Create JSX for the reel frame (9:16 aspect ratio)
-  const element = React.createElement(
-    'div',
-    {
-      style: {
-        width: '1080px',
-        height: '1920px',
-        display: 'flex',
-        position: 'relative',
-        alignItems: 'center',
-        justifyContent: 'center',
-        backgroundImage: `url(${imageSrc})`,
-        backgroundSize: 'cover',
-        backgroundPosition: 'center',
-      },
-    },
-    [
-      // Dark overlay (lighter for reels)
-      React.createElement('div', {
-        key: 'overlay',
-        style: {
-          position: 'absolute',
-          inset: 0,
-          backgroundColor: 'rgba(0, 0, 0, 0.4)',
-        },
-      }),
-      // Text container (centered for reel)
-      React.createElement(
-        'div',
-        {
-          key: 'text-container',
-          style: {
-            position: 'relative',
-            display: 'flex',
-            flexDirection: 'column',
-            alignItems: 'center',
-            justifyContent: 'center',
-            padding: '120px 60px',
-            textAlign: 'center',
-            gap: '16px',
-          },
-        },
-        lines.map((line, i) =>
-          React.createElement(
-            'div',
-            {
-              key: `line-${i}`,
-              style: {
-                fontSize: '56px',
-                fontWeight: 900,
-                color: 'white',
-                textShadow: '3px 3px 6px rgba(0, 0, 0, 0.8)',
-                lineHeight: 1.2,
-              },
-            },
-            line
-          )
-        )
-      ),
-    ]
+  // Create dark overlay (lighter for reels)
+  const overlay = Buffer.from(
+    `<svg width="1080" height="1920">
+      <rect width="1080" height="1920" fill="rgba(0,0,0,0.4)"/>
+    </svg>`
   );
 
-  // Convert JSX to SVG using Satori
-  const svg = await satori(element, {
-    width: 1080,
-    height: 1920,
-    fonts: [
-      {
-        name: 'Inter',
-        data: fonts.interFont!,
-        weight: 400,
-        style: 'normal',
-      },
-      {
-        name: 'Inter',
-        data: fonts.interBoldFont!,
-        weight: 900,
-        style: 'normal',
-      },
-    ],
-  });
+  // Word wrap text
+  const words = text.split(' ');
+  const lines: string[] = [];
+  let currentLine = '';
+  const maxCharsPerLine = 28;
 
-  // Convert SVG to PNG using Sharp (better compatibility)
-  const pngBuffer = await sharp(Buffer.from(svg))
+  for (const word of words) {
+    const testLine = currentLine ? `${currentLine} ${word}` : word;
+    if (testLine.length > maxCharsPerLine && currentLine) {
+      lines.push(currentLine);
+      currentLine = word;
+    } else {
+      currentLine = testLine;
+    }
+  }
+  if (currentLine) lines.push(currentLine);
+
+  // Create text SVG overlay centered for reel
+  const textY = 960 - (lines.length * 35); // Center vertically
+  const textSvg = `
+    <svg width="1080" height="1920">
+      <defs>
+        <filter id="shadow" x="-50%" y="-50%" width="200%" height="200%">
+          <feGaussianBlur in="SourceAlpha" stdDeviation="3"/>
+          <feOffset dx="2" dy="2" result="offsetblur"/>
+          <feComponentTransfer>
+            <feFuncA type="linear" slope="0.8"/>
+          </feComponentTransfer>
+          <feMerge>
+            <feMergeNode/>
+            <feMergeNode in="SourceGraphic"/>
+          </feMerge>
+        </filter>
+      </defs>
+      ${lines.map((line, i) => `
+        <text
+          x="540"
+          y="${textY + (i * 70)}"
+          font-family="Arial, sans-serif"
+          font-size="56"
+          font-weight="bold"
+          fill="white"
+          text-anchor="middle"
+          filter="url(#shadow)"
+        >${escapeXml(line)}</text>
+      `).join('')}
+    </svg>
+  `;
+
+  // Composite all layers
+  const result = await sharp(baseImage)
+    .composite([
+      { input: overlay, blend: 'over' },
+      { input: Buffer.from(textSvg), blend: 'over' }
+    ])
     .png()
     .toBuffer();
 
-  return pngBuffer;
+  return result;
 }
 
+/**
+ * Normalize image for consistent processing
+ */
 export async function normalizeImage(imageBuffer: Buffer): Promise<Buffer> {
-  // Normalize to JPEG for consistency
   return sharp(imageBuffer)
     .jpeg({ quality: 90 })
     .toBuffer();
+}
+
+/**
+ * Escape XML special characters
+ */
+function escapeXml(text: string): string {
+  return text
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&apos;');
 }

@@ -94,6 +94,13 @@ async function getValidatedModel(): Promise<string> {
   }
 }
 
+export interface StrategyLogic {
+  targetAvatar: string;
+  fourHBucket: string;
+  purpleCowAngle: string;
+  seoKeywords: string[];
+}
+
 export interface CarouselSlide {
   slideNumber: number;
   text: string;
@@ -105,9 +112,11 @@ export interface ReelScene {
   text: string;
   imageIndex: number;
   duration: number;
+  visualNote: string; // NEW: Visual direction for recording
 }
 
 export interface ContentPlan {
+  strategyLogic: StrategyLogic; // NEW: Titan Content Agent strategy
   carousel: CarouselSlide[];
   reel: ReelScene[];
   caption: string;
@@ -170,10 +179,20 @@ export async function generateContentPlan(
 
   const pillarGuidance = frameworkGuidance[contentPillar as keyof typeof frameworkGuidance] || frameworkGuidance.Mixed;
 
-  const prompt = `You are an expert Instagram content creator following Shannon McKinstrie's proven 4 H's Framework.
+  const prompt = `# ROLE DEFINITION
+You are the "Titan Content Agent." Your purpose is to generate high-performance social media content by synthesizing the methodologies of Seth Godin (Marketing Philosophy), Kevin Kelly (Audience Theory), Tim Ferriss (Efficiency/Testing), and Shannon McKinstrie (Tactical Execution).
 
-ANALYZE these ${images.length} business photos and create scroll-stopping Instagram content.
+# CORE OPERATING PRINCIPLES (THE "WHY")
+1. **The True Fan Directive (Kelly/Godin):** Never write for "everyone." Write for the "Smallest Viable Audience." Content must be specific enough to exclude people. If it appeals to everyone, it appeals to no one.
+2. **The Generosity Filter (Godin):** Content is not "content"—it is an act of generosity. It must solve a problem or validate a feeling.
+3. **The 80/20 Hook (Ferriss):** 80% of the content's success depends on the Hook (Headline/First 3 Seconds). You must prioritize the hook above the body.
+4. **The Remarkable Test (Godin):** Avoid the "safe center." If the content is not a "Purple Cow" (worth making a remark about), discard it.
 
+# THE GENERATION FRAMEWORK
+
+ANALYZE these ${images.length} business photos and create remarkable, scroll-stopping Instagram content.
+
+**CONTEXT:**
 Business: ${description}
 Key Messages: ${keyMessages}
 Tone: ${tone}
@@ -181,60 +200,71 @@ Content Pillar: ${contentPillar}
 
 ${pillarGuidance}
 
-## SHANNON'S UNIVERSAL SUCCESS PRINCIPLES:
+## PHASE 1: CATEGORIZATION (The McKinstrie 4-H Sort)
+Select ONE of the following content buckets based on the goal:
+* **HEARD (Validation):** "I see you." Focus on shared struggles/beliefs. Metric = Shares.
+* **HELPFUL (Education):** "Here is how." Focus on quick wins/tutorials. Metric = Saves.
+* **HUMOR (Relief):** "This is us." Focus on inside jokes/irony. Metric = Shares/Replies.
+* **HAPPENINGS (Trust):** "This is me." Focus on BTS/Vulnerability. Metric = DMs/Views.
+
+**Selected Bucket for this generation:** ${contentPillar}
+
+## PHASE 2: FORMAT OPTIMIZATION (Instagram Algorithm)
+* **If HEARD/HUMOR:** Generate a Static Carousel with powerful hook
+* **If HELPFUL:** Generate a Value-Packed Carousel with quick wins
+* **If HAPPENINGS:** Generate an Authentic Carousel with behind-the-scenes moments
+* **MANDATORY:** Include 3-5 specific SEO keywords naturally in the caption (not just in hashtags).
+
+## PHASE 3: THE FERRISS DECONSTRUCTION (Writing Rules)
+1. **The Hook (CRITICAL):** Must be startling, contrarian, or immediately valuable. Use "Negative Space" (what people are afraid to say).
+2. **The Body:** Use simple language (Grade 6 level). Cut "fluff" words (adverbs, passive voice).
+3. **The Call to Action (CTA):** ONE specific request per post. (e.g., "Comment 'YES' for the link," not "Like, share, and subscribe").
 
 **REP Hook Formula** (include at least 2 of these):
 - R = Relatable (phrases, words, or identifiers your audience recognizes)
 - E = Expertise (builds instant trust and qualifies you as credible)
 - P = Personal (adds human connection we all crave)
 
-Hook Templates to Consider:
-- "___ I recommend as a ___ who ___"
-- "___ I would never ___ as a ___"
-- "I'm a ___ and this is the ___ I swear by"
-- "I wish more ___ knew ___"
-
-**Voice & Style:**
-- Talk like a human, not a brand - use "I, my, me"
-- Keep content SIMPLE, SPECIFIC, and SHAREABLE
-- Under 10 seconds when possible (attention span = 8 seconds)
-- Hook in BOTH video text AND caption
-- Display main message all at once (don't reveal slowly)
-- Focus on watch-through rate over fancy production
-
-**Content Must:**
-- Create instant connection
-- Be entertainment + value (not masterclasses)
-- Give quick fixes and bite-sized tips
-- Make people want to share with friends
+Hook Templates (Purple Cow - Contrarian):
+- "Most ___ are wrong about ___. Here's why..."
+- "I stopped ___ and my ___ doubled"
+- "___ won't tell you this, but..."
+- "The ___ nobody talks about: ___"
 
 Generate:
-1. Carousel concept (10 slides):
-   - Slide 1: Scroll-stopping hook using REP formula (max 40 chars)
-   - Slides 2-9: Value points following ${contentPillar} pillar (max 70 chars each)
-   - Slide 10: Clear, actionable CTA (max 40 chars)
-   - Each slide text should feel personal and conversational
-   - **CRITICAL**: You MUST distribute images EVENLY across all 10 slides
+
+1. **STRATEGY LOGIC (Purple Cow Validation):**
+   - Target Avatar: Who is this SPECIFICALLY for? (Be narrow, not broad)
+   - The 4-H Bucket: Which pillar dominates? (${contentPillar})
+   - The "Purple Cow" Angle: What makes this remarkable/contrarian/worth sharing?
+   - SEO Keywords: 3-5 specific keywords to include naturally
+
+2. **Carousel concept (10 slides):**
+   - Slide 1: SCROLL-STOPPING hook using Purple Cow + REP formula (max 40 chars, must be contrarian/surprising)
+   - Slides 2-9: Value points following ${contentPillar} pillar (max 70 chars each, simple language)
+   - Slide 10: ONE specific CTA (max 40 chars)
+   - **CRITICAL**: Distribute images EVENLY across all 10 slides
    - Use ALL ${images.length} images at least once
-   - Pattern: Cycle through images (0,1,2,0,1,2...) or distribute strategically
+   - Pattern: Cycle through images (0,1,2,0,1,2...) for visual variety
    - NEVER use the same image more than 2 times in a row
 
-2. Reel script (5-7 scenes, keep TOTAL under 10 seconds):
-   - Scene 1: Powerful hook with REP formula (0.8-1.5 seconds, max 35 chars)
+3. **Reel script WITH VISUAL DIRECTION NOTES (5-7 scenes, TOTAL under 10 seconds):**
+   - Scene 1: Powerful Purple Cow hook (0.8-1.5 seconds, max 35 chars)
    - Middle scenes: Quick value hits (0.8-1.2 seconds each, max 50 chars)
-   - Final scene: Clear CTA (1.0-1.5 seconds, max 35 chars)
+   - Final scene: ONE clear CTA (1.0-1.5 seconds, max 35 chars)
+   - **NEW REQUIREMENT:** Each scene MUST include "visualNote" field describing what should be on screen
+   - Visual notes should describe: camera angle, body language, props, text overlay, transitions
    - Use "I/my/me" voice throughout
-   - Make it tag-worthy and shareable
-   - **CRITICAL**: Distribute images across ALL scenes - use different images for variety
-   - Cycle through available images (0,1,2,0,1...) to create visual variety
+   - **CRITICAL**: Distribute images across ALL scenes - cycle through available images
 
-3. Instagram caption (150 words, ${tone} tone):
-   - Start with the hook from the video
+4. **Instagram caption (150 words, ${tone} tone):**
+   - Start with the Purple Cow hook
+   - Include 3-5 SEO keywords naturally (from strategy logic)
    - Use conversational "I/my/me" language
-   - Include call-to-action
+   - Include ONE specific call-to-action
    - Make it feel personal, not corporate
 
-4. Hashtags (15 relevant, trending-ready tags)
+5. **Hashtags (15 relevant, trending-ready tags)**
 
 CRITICAL IMAGE DISTRIBUTION RULES:
 - You have ${images.length} images available (indices 0-${images.length - 1})
@@ -242,17 +272,21 @@ CRITICAL IMAGE DISTRIBUTION RULES:
 - DO NOT repeat the same image more than twice consecutively
 - Example for 3 images: [0,1,2,0,1,2,0,1,2,0] ✅
 - Example WRONG: [0,0,0,1,1,1,2,2,2,0] ❌
-- Example WRONG: [0,0,0,0,0,0,0,0,0,0] ❌
 
-TEXT REQUIREMENTS:
-- Text must be PUNCHY and CONVERSATIONAL (like texting a friend)
-- Include ${contentPillar} pillar principles
-- Use REP formula in hooks
-- Keep reel UNDER 10 SECONDS total
-- Make it shareable and tag-worthy
+PURPLE COW TEST (Before finalizing):
+- Is the hook contrarian or surprising? (Not generic)
+- Would someone share this with a friend? (Remarkable)
+- Does it exclude some people? (Specific, not broad)
+- Does it solve a problem OR validate a feeling? (Generosity)
 
 Return ONLY valid JSON in this exact format:
 {
+  "strategyLogic": {
+    "targetAvatar": "Specific narrow audience description",
+    "fourHBucket": "${contentPillar}",
+    "purpleCowAngle": "What makes this content remarkable/contrarian/shareable",
+    "seoKeywords": ["keyword1", "keyword2", "keyword3"]
+  },
   "carousel": [
     {"slideNumber": 1, "text": "Your hook here", "imageIndex": 0},
     {"slideNumber": 2, "text": "Value point 1", "imageIndex": 1},
@@ -266,13 +300,13 @@ Return ONLY valid JSON in this exact format:
     {"slideNumber": 10, "text": "CTA here", "imageIndex": 0}
   ],
   "reel": [
-    {"sceneNumber": 1, "text": "Hook text", "imageIndex": 0, "duration": 1.5},
-    {"sceneNumber": 2, "text": "Benefit 1", "imageIndex": 1, "duration": 1.2},
-    {"sceneNumber": 3, "text": "Benefit 2", "imageIndex": 2, "duration": 1.2},
-    {"sceneNumber": 4, "text": "Benefit 3", "imageIndex": 0, "duration": 1.2},
-    {"sceneNumber": 5, "text": "CTA", "imageIndex": 1, "duration": 1.5}
+    {"sceneNumber": 1, "text": "Hook text", "imageIndex": 0, "duration": 1.5, "visualNote": "Close-up, direct to camera, confident eye contact"},
+    {"sceneNumber": 2, "text": "Benefit 1", "imageIndex": 1, "duration": 1.2, "visualNote": "Medium shot, hand gesture for emphasis"},
+    {"sceneNumber": 3, "text": "Benefit 2", "imageIndex": 2, "duration": 1.2, "visualNote": "Product/service in action, quick transition"},
+    {"sceneNumber": 4, "text": "Benefit 3", "imageIndex": 0, "duration": 1.2, "visualNote": "Over-the-shoulder angle, show results"},
+    {"sceneNumber": 5, "text": "CTA", "imageIndex": 1, "duration": 1.5, "visualNote": "Back to close-up, smile, point to CTA button"}
   ],
-  "caption": "Your engaging caption here...",
+  "caption": "Your engaging caption here with SEO keywords naturally integrated...",
   "hashtags": ["tag1", "tag2", "tag3"]
 }`;
 
@@ -300,15 +334,29 @@ Return ONLY valid JSON in this exact format:
     const contentPlan: ContentPlan = JSON.parse(jsonText);
 
     // Validate the structure
+    if (!contentPlan.strategyLogic || !contentPlan.strategyLogic.targetAvatar) {
+      throw new Error('Invalid strategy logic structure');
+    }
     if (!contentPlan.carousel || !Array.isArray(contentPlan.carousel) || contentPlan.carousel.length !== 10) {
       throw new Error('Invalid carousel structure');
     }
     if (!contentPlan.reel || !Array.isArray(contentPlan.reel) || contentPlan.reel.length < 5) {
       throw new Error('Invalid reel structure');
     }
+    // Validate visual notes in reel scenes
+    const hasVisualNotes = contentPlan.reel.every(scene => scene.visualNote && scene.visualNote.length > 0);
+    if (!hasVisualNotes) {
+      console.warn('[GEMINI] Warning: Some reel scenes missing visual notes');
+    }
     if (!contentPlan.caption || !contentPlan.hashtags) {
       throw new Error('Missing caption or hashtags');
     }
+
+    console.log('[GEMINI] ✅ Titan Content Agent strategy:', {
+      avatar: contentPlan.strategyLogic.targetAvatar,
+      purpleCow: contentPlan.strategyLogic.purpleCowAngle,
+      seoKeywords: contentPlan.strategyLogic.seoKeywords
+    });
 
     return contentPlan;
   } catch (error) {

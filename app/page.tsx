@@ -37,15 +37,15 @@ export default function Home() {
           <h1 className="font-serif text-6xl md:text-8xl font-bold text-cream mb-8 leading-tight tracking-tight">
             Turn Photos into
             <br />
-            <span className="bg-gradient-gold bg-clip-text text-transparent">
+            <span className="bg-gradient-warm bg-clip-text text-transparent">
               Instagram Content
             </span>
             <br />
-            <span className="text-5xl md:text-6xl">in 2 Minutes</span>
+            <span className="text-5xl md:text-6xl text-white">in 2 Minutes</span>
           </h1>
 
           {/* Subheading with Letter Spacing */}
-          <p className="text-xl md:text-2xl text-navy-200 mb-12 max-w-3xl mx-auto tracking-wide">
+          <p className="text-xl md:text-2xl text-cream/80 mb-12 max-w-3xl mx-auto tracking-wide">
             30X faster than manual creation. Built for founders like Andrés Bilbao.
           </p>
 
@@ -54,13 +54,13 @@ export default function Home() {
             href="/create"
             className="group inline-block relative"
           >
-            <div className="absolute inset-0 bg-gradient-gold rounded-xl blur-xl opacity-50 group-hover:opacity-75 transition-opacity duration-300"></div>
-            <div className="relative bg-gradient-gold text-navy-900 font-bold text-lg py-5 px-14 rounded-xl transition-all transform group-hover:scale-105 shadow-2xl">
+            <div className="absolute inset-0 bg-gradient-warm rounded-xl blur-xl opacity-50 group-hover:opacity-75 transition-opacity duration-300"></div>
+            <div className="relative bg-gradient-warm text-navy-900 font-bold text-lg py-5 px-14 rounded-xl transition-all transform group-hover:scale-105 shadow-2xl">
               Try Free Now
             </div>
           </Link>
 
-          <p className="text-navy-400 mt-6 text-sm tracking-wider">
+          <p className="text-cream/60 mt-6 text-sm tracking-wider">
             No credit card • Unlimited generations • Shannon's 4 H's Framework
           </p>
         </div>
@@ -84,10 +84,10 @@ export default function Home() {
               >
                 {/* Glassmorphism card */}
                 <div className="relative bg-white/5 backdrop-blur-md border border-white/10 rounded-2xl p-10 text-center hover:bg-white/10 transition-all duration-300 hover:scale-105">
-                  <div className="text-5xl font-bold bg-gradient-gold bg-clip-text text-transparent mb-3">
+                  <div className="text-5xl font-bold bg-gradient-warm bg-clip-text text-transparent mb-3">
                     {stat.metric}
                   </div>
-                  <div className="text-navy-300 tracking-wide">{stat.label}</div>
+                  <div className="text-cream/70 tracking-wide">{stat.label}</div>
                 </div>
               </div>
             ))}
@@ -129,8 +129,8 @@ export default function Home() {
                 {/* Badge */}
                 <div className="flex-shrink-0">
                   <div className="relative w-32 h-32 flex items-center justify-center">
-                    <div className="absolute inset-0 bg-gradient-gold rounded-full opacity-20 blur-xl"></div>
-                    <div className="relative w-24 h-24 bg-gradient-gold rounded-full flex items-center justify-center shadow-2xl">
+                    <div className="absolute inset-0 bg-gradient-warm rounded-full opacity-20 blur-xl"></div>
+                    <div className="relative w-24 h-24 bg-gradient-warm rounded-full flex items-center justify-center shadow-2xl">
                       <span className="font-serif text-3xl font-bold text-navy-900">
                         {step.number}
                       </span>
@@ -143,7 +143,7 @@ export default function Home() {
                   <h3 className="font-serif text-3xl md:text-4xl font-bold text-gold-500 mb-4">
                     {step.title}
                   </h3>
-                  <p className="text-lg text-navy-200 leading-relaxed max-w-2xl">
+                  <p className="text-lg text-cream/80 leading-relaxed max-w-2xl">
                     {step.desc}
                   </p>
                 </div>
@@ -159,7 +159,7 @@ export default function Home() {
           <h2 className="font-serif text-5xl md:text-6xl font-bold text-cream text-center mb-8">
             What You Get
           </h2>
-          <p className="text-center text-navy-300 text-lg mb-20 tracking-wide">
+          <p className="text-center text-cream/70 text-lg mb-20 tracking-wide">
             Professional-grade content in minutes, not hours
           </p>
 
@@ -195,7 +195,7 @@ export default function Home() {
                   <h3 className="font-serif text-2xl font-bold text-gold-500 mb-4">
                     {feature.title}
                   </h3>
-                  <p className="text-navy-200 leading-relaxed">
+                  <p className="text-cream/80 leading-relaxed">
                     {feature.desc}
                   </p>
                 </div>
@@ -211,11 +211,11 @@ export default function Home() {
           <h2 className="font-serif text-5xl md:text-6xl font-bold text-cream mb-8">
             Ready to 30X Your
             <br />
-            <span className="bg-gradient-gold bg-clip-text text-transparent">
+            <span className="bg-gradient-warm bg-clip-text text-transparent">
               Content Creation?
             </span>
           </h2>
-          <p className="text-xl text-navy-300 mb-12 tracking-wide">
+          <p className="text-xl text-cream/70 mb-12 tracking-wide">
             Join founders saving 20+ hours per week on Instagram content
           </p>
 
@@ -223,8 +223,8 @@ export default function Home() {
             href="/create"
             className="group inline-block relative"
           >
-            <div className="absolute inset-0 bg-gradient-gold rounded-xl blur-xl opacity-50 group-hover:opacity-75 transition-opacity duration-300"></div>
-            <div className="relative bg-gradient-gold text-navy-900 font-bold text-lg py-5 px-14 rounded-xl transition-all transform group-hover:scale-105 shadow-2xl">
+            <div className="absolute inset-0 bg-gradient-warm rounded-xl blur-xl opacity-50 group-hover:opacity-75 transition-opacity duration-300"></div>
+            <div className="relative bg-gradient-warm text-navy-900 font-bold text-lg py-5 px-14 rounded-xl transition-all transform group-hover:scale-105 shadow-2xl">
               Create Your First Content
             </div>
           </Link>
@@ -233,9 +233,9 @@ export default function Home() {
 
       {/* Footer */}
       <footer className="py-12 px-6 border-t border-white/10">
-        <div className="max-w-7xl mx-auto text-center text-navy-400">
+        <div className="max-w-7xl mx-auto text-center text-cream/60">
           <p className="tracking-wide">Built for founders who want to automate content creation</p>
-          <p className="mt-3 text-sm text-navy-500">
+          <p className="mt-3 text-sm text-cream/50">
             Powered by Google Gemini 1.5 Flash • Shannon's 4 H's Framework
           </p>
         </div>

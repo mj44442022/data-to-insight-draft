@@ -9,6 +9,7 @@ interface PreviewReelProps {
     text: string;
     imageIndex: number;
     duration: number;
+    visualNote?: string; // NEW: Visual direction notes
   }>;
   videoError?: string;
 }
@@ -98,7 +99,15 @@ export default function PreviewReel({ videoUrl, script, videoError }: PreviewRee
                   </div>
                 </div>
 
-                {/* Direction Note */}
+                {/* Visual Direction Note */}
+                <div className="mb-3 bg-plum-dark/30 border border-plum/30 rounded-lg p-3">
+                  <div className="text-xs font-semibold text-gold-500 mb-1">🎥 VISUAL DIRECTION:</div>
+                  <div className="text-sm text-cream/80 italic">
+                    {scene.visualNote || (isFirst ? 'Close-up, direct to camera, confident eye contact' : isLast ? 'Back to close-up, smile, point to CTA' : 'Medium shot, engaging body language')}
+                  </div>
+                </div>
+
+                {/* Delivery Note */}
                 <div className="mb-2 text-xs italic text-gray-400">
                   {isFirst && '💡 Deliver with energy & eye contact. Set the hook!'}
                   {!isFirst && !isLast && '🎯 Clear, concise value. Keep momentum.'}
