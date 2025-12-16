@@ -289,35 +289,40 @@ export async function POST(request: NextRequest) {
     console.log('[GENERATE] Step 4/4: Preparing reel script with visual direction notes...');
     console.log('[GENERATE] ✅ Reel script ready with visual direction notes (frames/video generation disabled)');
 
-    console.log('[GENERATE] 🔼 Uploading carousel ZIP to Vercel Blob...');
+    // 🎯 SMART STORAGE: Use Vercel Blob in production, base64 fallback for local dev
+    const hasBlobToken = !!process.env.BLOB_READ_WRITE_TOKEN;
+    console.log(`[GENERATE] Storage mode: ${hasBlobToken ? 'Vercel Blob (production)' : 'Base64 fallback (local dev)'}`);
 
-    // Upload carousel ZIP to Vercel Blob
     let carouselZipUrl: string;
-    try {
-      const timestamp = Date.now();
-      const blob = await put(`carousels/carousel-${timestamp}.zip`, carouselZip, {
-        access: 'public',
-        contentType: 'application/zip',
-      });
-      carouselZipUrl = blob.url;
-      console.log(`[GENERATE] ✅ Carousel ZIP uploaded to: ${carouselZipUrl}`);
-    } catch (error) {
-      console.error('[GENERATE] Failed to upload carousel ZIP to Blob:', error);
-      return NextResponse.json(
-        {
-          error: 'Failed to upload carousel ZIP',
-          details: error instanceof Error ? error.message : 'Unknown error',
-          step: 'Blob Upload (Carousel)',
-        },
-        { status: 500 }
-      );
+
+    if (hasBlobToken) {
+      // PRODUCTION: Upload to Vercel Blob
+      console.log('[GENERATE] 🔼 Uploading carousel ZIP to Vercel Blob...');
+      try {
+        const timestamp = Date.now();
+        const blob = await put(`carousels/carousel-${timestamp}.zip`, carouselZip, {
+          access: 'public',
+          contentType: 'application/zip',
+        });
+        carouselZipUrl = blob.url;
+        console.log(`[GENERATE] ✅ Carousel ZIP uploaded to Blob: ${carouselZipUrl}`);
+      } catch (error) {
+        console.error('[GENERATE] Blob upload failed, falling back to base64:', error);
+        // Fallback to base64 if Blob fails
+        carouselZipUrl = `data:application/zip;base64,${carouselZip.toString('base64')}`;
+      }
+    } else {
+      // LOCAL DEVELOPMENT: Use base64 (no Blob token available)
+      console.log('[GENERATE] ⚠️ No Blob token found - using base64 fallback (local development mode)');
+      carouselZipUrl = `data:application/zip;base64,${carouselZip.toString('base64')}`;
+      console.log('[GENERATE] ✅ Carousel ZIP converted to base64 data URL');
     }
 
-    // 🗑️ GARBAGE COLLECTION: Free carousel ZIP buffer (uploaded to Blob)
+    // 🗑️ GARBAGE COLLECTION: Free carousel ZIP buffer
     carouselZip = null as any;
     if (global.gc) {
       global.gc();
-      console.log('[GENERATE] 🗑️ Garbage collection triggered after carousel upload');
+      console.log('[GENERATE] 🗑️ Garbage collection triggered');
     }
 
     // 🎯 VIDEO GENERATION DISABLED - Focus on carousel + script only
@@ -351,13 +356,14 @@ export async function POST(request: NextRequest) {
 
     const totalTime = ((Date.now() - startTime) / 1000).toFixed(2);
     console.log(`[GENERATE] ✨ Generation complete in ${totalTime}s`);
+    console.log(`[GENERATE] 📦 Storage: ${hasBlobToken ? 'Vercel Blob URL' : 'Base64 data URL'}`);
+    console.log(`[GENERATE] 📊 Response size: ${hasBlobToken ? '~50KB (optimized)' : '~2-5MB (local dev OK)'}`);
 
-    // Return response with Blob URLs (not base64)
-    // This keeps the response size tiny (<4.5MB) and fast
+    // Return response with URL (Blob in production, base64 data URL in dev)
     return NextResponse.json({
       success: true,
       carousel: {
-        zipUrl: carouselZipUrl, // ✅ URL instead of base64
+        zipUrl: carouselZipUrl, // Blob URL (production) or base64 data URL (local)
         slides: carouselSlides.map((slide) => slide.toString('base64')), // Keep for preview
       },
       reel: {
