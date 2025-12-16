@@ -1,12 +1,20 @@
 'use client';
 
 import { useState } from 'react';
+import JSZip from 'jszip';
+import { saveAs } from 'file-saver';
 
 interface DownloadButtonsProps {
   carouselZipUrl: string; // ✅ URL from Vercel Blob
   reelVideoUrl: string | null; // ✅ URL from Vercel Blob (or null)
   caption: string;
   hashtags: string[];
+  carouselSlides?: string[]; // Base64 encoded images for "Download All"
+  reelScript?: Array<{
+    sceneNumber: number;
+    text: string;
+    visualNote?: string;
+  }>;
 }
 
 export default function DownloadButtons({
@@ -14,9 +22,12 @@ export default function DownloadButtons({
   reelVideoUrl,
   caption,
   hashtags,
+  carouselSlides = [],
+  reelScript = [],
 }: DownloadButtonsProps) {
   const [copiedCaption, setCopiedCaption] = useState(false);
   const [copiedHashtags, setCopiedHashtags] = useState(false);
+  const [isDownloadingAll, setIsDownloadingAll] = useState(false);
 
   const downloadFileFromUrl = async (url: string, filename: string) => {
     try {
@@ -46,11 +57,83 @@ export default function DownloadButtons({
     setTimeout(() => setCopied(false), 2000);
   };
 
+  const downloadAllAssets = async () => {
+    try {
+      setIsDownloadingAll(true);
+      const zip = new JSZip();
+
+      // Add carousel slides as individual PNG files
+      if (carouselSlides.length > 0) {
+        const carouselFolder = zip.folder('carousel-slides');
+        carouselSlides.forEach((slideBase64, index) => {
+          // Convert base64 to binary
+          const binary = atob(slideBase64);
+          const bytes = new Uint8Array(binary.length);
+          for (let i = 0; i < binary.length; i++) {
+            bytes[i] = binary.charCodeAt(i);
+          }
+          carouselFolder?.file(`slide-${index + 1}.png`, bytes, { binary: true });
+        });
+      }
+
+      // Add teleprompter script as TXT file
+      if (reelScript.length > 0) {
+        let scriptContent = '=== TELEPROMPTER SCRIPT ===\n\n';
+        reelScript.forEach((scene) => {
+          scriptContent += `Scene ${scene.sceneNumber}:\n`;
+          scriptContent += `${scene.text}\n`;
+          if (scene.visualNote) {
+            scriptContent += `[Visual: ${scene.visualNote}]\n`;
+          }
+          scriptContent += '\n';
+        });
+        zip.file('teleprompter-script.txt', scriptContent);
+      }
+
+      // Add caption and hashtags as TXT file
+      let captionContent = '=== INSTAGRAM CAPTION ===\n\n';
+      captionContent += caption + '\n\n';
+      captionContent += '=== HASHTAGS ===\n\n';
+      captionContent += hashtags.map((tag) => `#${tag}`).join(' ');
+      zip.file('caption-and-hashtags.txt', captionContent);
+
+      // Generate and download ZIP
+      const blob = await zip.generateAsync({ type: 'blob' });
+      const timestamp = new Date().toISOString().split('T')[0];
+      saveAs(blob, `instagram-content-${timestamp}.zip`);
+
+    } catch (error) {
+      console.error('Download All failed:', error);
+      alert('Failed to create download bundle. Please try individual downloads.');
+    } finally {
+      setIsDownloadingAll(false);
+    }
+  };
+
   const timestamp = new Date().toISOString().split('T')[0];
 
   return (
     <div className="space-y-6">
-      {/* Download Buttons */}
+      {/* Download All Assets Button */}
+      {carouselSlides.length > 0 && (
+        <button
+          onClick={downloadAllAssets}
+          disabled={isDownloadingAll}
+          className="w-full flex items-center justify-center gap-3 bg-gradient-to-r from-gold-500 to-coral-500 hover:scale-105 text-white font-bold py-4 px-6 rounded-xl transition-all shadow-2xl shadow-gold-500/50 disabled:opacity-50 disabled:cursor-not-allowed"
+        >
+          <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              strokeWidth={2}
+              d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M9 19l3 3m0 0l3-3m-3 3V10"
+            />
+          </svg>
+          {isDownloadingAll ? 'Creating Bundle...' : 'Download All Assets (ZIP)'}
+        </button>
+      )}
+
+      {/* Individual Download Buttons */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <button
           onClick={() => downloadFileFromUrl(carouselZipUrl, `carousel-${timestamp}.zip`)}

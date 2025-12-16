@@ -218,6 +218,8 @@ export default function CreatePage() {
                 reelVideoUrl={generatedContent.reel.videoUrl}
                 caption={generatedContent.caption}
                 hashtags={generatedContent.hashtags}
+                carouselSlides={generatedContent.carousel.slides}
+                reelScript={generatedContent.reel.script}
               />
             </div>
 
