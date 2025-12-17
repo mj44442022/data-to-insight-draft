@@ -1,35 +1,12 @@
 import satori from 'satori';
-import { initWasm, Resvg } from '@resvg/resvg-wasm';
 import sharp from 'sharp';
 import { ReactElement } from 'react';
 
 // Font cache to avoid re-fetching
 let fontCache: ArrayBuffer | null = null;
-let wasmInitialized = false;
 
 /**
- * Initialize WASM module (must be called before using Resvg)
- */
-async function initializeWasm(): Promise<void> {
-  if (wasmInitialized) return;
-
-  try {
-    console.log('[IMAGE-PROCESSOR] Initializing RESVG WASM...');
-    // Fetch WASM file from CDN or use bundled version
-    const wasmUrl = 'https://unpkg.com/@resvg/resvg-wasm@2.6.2/index_bg.wasm';
-    const response = await fetch(wasmUrl);
-    const wasmBuffer = await response.arrayBuffer();
-    await initWasm(wasmBuffer);
-    wasmInitialized = true;
-    console.log('[IMAGE-PROCESSOR] ✅ WASM initialized');
-  } catch (error) {
-    console.error('[IMAGE-PROCESSOR] WASM initialization failed:', error);
-    throw new Error('Failed to initialize RESVG WASM');
-  }
-}
-
-/**
- * Fetch Roboto Bold font from Google Fonts
+ * Fetch Roboto Bold font from Google Fonts CDN
  * Cached after first fetch to improve performance
  */
 async function getRobotoFont(): Promise<ArrayBuffer> {
@@ -39,9 +16,10 @@ async function getRobotoFont(): Promise<ArrayBuffer> {
 
   try {
     console.log('[IMAGE-PROCESSOR] Fetching Roboto Bold font...');
-    // Use the direct TTF URL for better compatibility
+
+    // Use Google Fonts CDN (reliable, fast, global CDN)
     const response = await fetch(
-      'https://github.com/google/fonts/raw/main/apache/roboto/static/Roboto-Bold.ttf'
+      'https://fonts.gstatic.com/s/roboto/v30/KFOlCnqEu92Fr1MmWUlfBBc4.woff'
     );
 
     if (!response.ok) {
@@ -49,16 +27,17 @@ async function getRobotoFont(): Promise<ArrayBuffer> {
     }
 
     fontCache = await response.arrayBuffer();
-    console.log('[IMAGE-PROCESSOR] ✅ Font loaded and cached (${fontCache.byteLength} bytes)');
+    console.log(`[IMAGE-PROCESSOR] ✅ Font loaded and cached (${fontCache.byteLength} bytes)`);
     return fontCache;
+
   } catch (error) {
     console.error('[IMAGE-PROCESSOR] Font fetch failed:', error);
-    throw new Error('Failed to load Roboto font - carousel generation cannot proceed');
+    throw new Error('Failed to load Roboto font - cannot generate carousel');
   }
 }
 
 /**
- * Create a high-end Instagram carousel slide using Satori + RESVG WASM
+ * Create a high-end Instagram carousel slide using Satori + Sharp
  * @param imageBuffer - User's uploaded image
  * @param text - Text overlay for the slide
  * @param slideNumber - Slide number (e.g., 1/10)
@@ -72,17 +51,14 @@ export async function createCarouselSlide(
   try {
     console.log(`[IMAGE-PROCESSOR] Creating carousel slide ${slideNumber}...`);
 
-    // Step 1: Initialize WASM
-    await initializeWasm();
-
-    // Step 2: Convert image to base64 data URL for background
+    // Step 1: Convert image to base64 data URL for background
     const imageBase64 = imageBuffer.toString('base64');
     const imageDataUrl = `data:image/jpeg;base64,${imageBase64}`;
 
-    // Step 3: Fetch font (REQUIRED - Satori cannot render without fonts)
+    // Step 2: Fetch font (REQUIRED for Satori)
     const fontData = await getRobotoFont();
 
-    // Step 4: Word wrap text (max 40 chars per line for readability)
+    // Step 3: Word wrap text (max 40 chars per line)
     const words = text.split(' ');
     const lines: string[] = [];
     let currentLine = '';
@@ -99,7 +75,7 @@ export async function createCarouselSlide(
     }
     if (currentLine) lines.push(currentLine);
 
-    // Step 5: Create SVG using Satori with proper React elements
+    // Step 4: Create React element for Satori
     const element: ReactElement = {
       type: 'div',
       key: null,
@@ -205,6 +181,7 @@ export async function createCarouselSlide(
       },
     } as ReactElement;
 
+    // Step 5: Generate SVG using Satori
     const svg = await satori(element, {
       width: 1080,
       height: 1080,
@@ -218,28 +195,22 @@ export async function createCarouselSlide(
       ],
     });
 
-    // Step 6: Convert SVG to PNG using RESVG WASM
-    const resvg = new Resvg(svg, {
-      fitTo: {
-        mode: 'width',
-        value: 1080,
-      },
-    });
+    // Step 6: Convert SVG to PNG using Sharp (built-in SVG support)
+    const pngBuffer = await sharp(Buffer.from(svg))
+      .png()
+      .toBuffer();
 
-    const pngData = resvg.render();
-    const pngBuffer = pngData.asPng();
-
-    console.log(`[IMAGE-PROCESSOR] ✅ Carousel slide ${slideNumber} created (${pngBuffer.length} bytes)`);
-    return Buffer.from(pngBuffer);
+    console.log(`[IMAGE-PROCESSOR] ✅ Slide ${slideNumber} created (${pngBuffer.length} bytes)`);
+    return pngBuffer;
 
   } catch (error) {
-    console.error(`[IMAGE-PROCESSOR] Failed to create carousel slide ${slideNumber}:`, error);
+    console.error(`[IMAGE-PROCESSOR] Failed to create slide ${slideNumber}:`, error);
     throw new Error(`Carousel slide generation failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
   }
 }
 
 /**
- * Create a reel frame (9:16 aspect ratio) using Satori + RESVG WASM
+ * Create a reel frame (9:16 aspect ratio) using Satori + Sharp
  * @param imageBuffer - User's uploaded image
  * @param text - Text overlay for the frame
  * @returns PNG buffer
@@ -251,17 +222,14 @@ export async function createReelFrame(
   try {
     console.log('[IMAGE-PROCESSOR] Creating reel frame...');
 
-    // Step 1: Initialize WASM
-    await initializeWasm();
-
-    // Step 2: Convert image to base64 data URL
+    // Step 1: Convert image to base64 data URL
     const imageBase64 = imageBuffer.toString('base64');
     const imageDataUrl = `data:image/jpeg;base64,${imageBase64}`;
 
-    // Step 3: Fetch font
+    // Step 2: Fetch font
     const fontData = await getRobotoFont();
 
-    // Step 4: Word wrap text (max 35 chars per line for vertical format)
+    // Step 3: Word wrap text (max 35 chars per line for vertical format)
     const words = text.split(' ');
     const lines: string[] = [];
     let currentLine = '';
@@ -278,7 +246,7 @@ export async function createReelFrame(
     }
     if (currentLine) lines.push(currentLine);
 
-    // Step 5: Create SVG using Satori with proper React elements
+    // Step 4: Create React element for Satori
     const element: ReactElement = {
       type: 'div',
       key: null,
@@ -347,6 +315,7 @@ export async function createReelFrame(
       },
     } as ReactElement;
 
+    // Step 5: Generate SVG using Satori
     const svg = await satori(element, {
       width: 1080,
       height: 1920,
@@ -360,19 +329,13 @@ export async function createReelFrame(
       ],
     });
 
-    // Step 6: Convert SVG to PNG using RESVG WASM
-    const resvg = new Resvg(svg, {
-      fitTo: {
-        mode: 'width',
-        value: 1080,
-      },
-    });
-
-    const pngData = resvg.render();
-    const pngBuffer = pngData.asPng();
+    // Step 6: Convert SVG to PNG using Sharp (built-in SVG support)
+    const pngBuffer = await sharp(Buffer.from(svg))
+      .png()
+      .toBuffer();
 
     console.log('[IMAGE-PROCESSOR] ✅ Reel frame created');
-    return Buffer.from(pngBuffer);
+    return pngBuffer;
 
   } catch (error) {
     console.error('[IMAGE-PROCESSOR] Failed to create reel frame:', error);
