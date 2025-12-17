@@ -1,38 +1,46 @@
 import satori from 'satori';
 import sharp from 'sharp';
 import { ReactElement } from 'react';
+import fs from 'fs';
+import path from 'path';
 
-// Font cache to avoid re-fetching
+// Font cache to avoid re-reading
 let fontCache: ArrayBuffer | null = null;
 
 /**
- * Fetch Roboto Bold font from Google Fonts CDN
- * Cached after first fetch to improve performance
+ * Load Roboto Bold font from node_modules (bundled with @fontsource/roboto)
+ * Cached after first load to improve performance
  */
-async function getRobotoFont(): Promise<ArrayBuffer> {
+function getRobotoFont(): ArrayBuffer {
   if (fontCache) {
     return fontCache;
   }
 
   try {
-    console.log('[IMAGE-PROCESSOR] Fetching Roboto Bold font...');
+    console.log('[IMAGE-PROCESSOR] Loading Roboto Bold font from bundle...');
 
-    // Use Google Fonts CDN (reliable, fast, global CDN)
-    const response = await fetch(
-      'https://fonts.gstatic.com/s/roboto/v30/KFOlCnqEu92Fr1MmWUlfBBc4.woff'
+    // Load font from @fontsource/roboto package
+    const fontPath = path.join(
+      process.cwd(),
+      'node_modules',
+      '@fontsource',
+      'roboto',
+      'files',
+      'roboto-latin-700-normal.woff'
     );
 
-    if (!response.ok) {
-      throw new Error(`Font fetch failed: ${response.status}`);
-    }
+    const fontBuffer = fs.readFileSync(fontPath);
+    fontCache = fontBuffer.buffer.slice(
+      fontBuffer.byteOffset,
+      fontBuffer.byteOffset + fontBuffer.byteLength
+    );
 
-    fontCache = await response.arrayBuffer();
-    console.log(`[IMAGE-PROCESSOR] ✅ Font loaded and cached (${fontCache.byteLength} bytes)`);
+    console.log(`[IMAGE-PROCESSOR] ✅ Font loaded from bundle (${fontCache.byteLength} bytes)`);
     return fontCache;
 
   } catch (error) {
-    console.error('[IMAGE-PROCESSOR] Font fetch failed:', error);
-    throw new Error('Failed to load Roboto font - cannot generate carousel');
+    console.error('[IMAGE-PROCESSOR] Font load failed:', error);
+    throw new Error('Failed to load Roboto font from bundle');
   }
 }
 
@@ -55,8 +63,8 @@ export async function createCarouselSlide(
     const imageBase64 = imageBuffer.toString('base64');
     const imageDataUrl = `data:image/jpeg;base64,${imageBase64}`;
 
-    // Step 2: Fetch font (REQUIRED for Satori)
-    const fontData = await getRobotoFont();
+    // Step 2: Load font from bundle (REQUIRED for Satori)
+    const fontData = getRobotoFont();
 
     // Step 3: Word wrap text (max 40 chars per line)
     const words = text.split(' ');
@@ -226,8 +234,8 @@ export async function createReelFrame(
     const imageBase64 = imageBuffer.toString('base64');
     const imageDataUrl = `data:image/jpeg;base64,${imageBase64}`;
 
-    // Step 2: Fetch font
-    const fontData = await getRobotoFont();
+    // Step 2: Load font from bundle
+    const fontData = getRobotoFont();
 
     // Step 3: Word wrap text (max 35 chars per line for vertical format)
     const words = text.split(' ');
