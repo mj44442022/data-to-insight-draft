@@ -10,7 +10,6 @@
     "lint": "next lint"
   },
   "dependencies": {
-    "@fontsource/roboto": "^5.2.9",
     "@google/generative-ai": "^0.21.0",
     "@vercel/blob": "^2.0.0",
     "archiver": "^7.0.1",

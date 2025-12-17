@@ -8,7 +8,7 @@ import path from 'path';
 let fontCache: ArrayBuffer | null = null;
 
 /**
- * Load Roboto Bold font from node_modules (bundled with @fontsource/roboto)
+ * Load Roboto Bold font from public/fonts/ (bundled with app)
  * Cached after first load to improve performance
  */
 function getRobotoFont(): ArrayBuffer {
@@ -17,17 +17,10 @@ function getRobotoFont(): ArrayBuffer {
   }
 
   try {
-    console.log('[IMAGE-PROCESSOR] Loading Roboto Bold font from bundle...');
+    console.log('[IMAGE-PROCESSOR] Loading Roboto Bold font from public/fonts/...');
 
-    // Load font from @fontsource/roboto package
-    const fontPath = path.join(
-      process.cwd(),
-      'node_modules',
-      '@fontsource',
-      'roboto',
-      'files',
-      'roboto-latin-700-normal.woff'
-    );
+    // Load font from public/fonts/ directory (works in all environments)
+    const fontPath = path.join(process.cwd(), 'public', 'fonts', 'Roboto-Bold.ttf');
 
     const fontBuffer = fs.readFileSync(fontPath);
     fontCache = fontBuffer.buffer.slice(
@@ -35,12 +28,13 @@ function getRobotoFont(): ArrayBuffer {
       fontBuffer.byteOffset + fontBuffer.byteLength
     );
 
-    console.log(`[IMAGE-PROCESSOR] ✅ Font loaded from bundle (${fontCache.byteLength} bytes)`);
+    console.log(`[IMAGE-PROCESSOR] ✅ Font loaded (${fontCache.byteLength} bytes)`);
     return fontCache;
 
   } catch (error) {
     console.error('[IMAGE-PROCESSOR] Font load failed:', error);
-    throw new Error('Failed to load Roboto font from bundle');
+    console.error('[IMAGE-PROCESSOR] Font path attempted:', path.join(process.cwd(), 'public', 'fonts', 'Roboto-Bold.ttf'));
+    throw new Error('Failed to load Roboto font from public/fonts/');
   }
 }
 
