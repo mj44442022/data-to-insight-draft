@@ -11,6 +11,7 @@ let fontCache: ArrayBuffer | null = null;
 /**
  * Load Roboto Bold font from public/fonts/ (bundled with app)
  * Cached after first load to improve performance
+ * Uses WOFF format for better compatibility with Satori
  */
 function getRobotoFont(): ArrayBuffer {
   if (fontCache) {
@@ -20,8 +21,8 @@ function getRobotoFont(): ArrayBuffer {
   try {
     console.log('[IMAGE-PROCESSOR] Loading Roboto Bold font from public/fonts/...');
 
-    // Load font from public/fonts/ directory (works in all environments)
-    const fontPath = path.join(process.cwd(), 'public', 'fonts', 'Roboto-Bold.ttf');
+    // Load WOFF font from public/fonts/ directory (WOFF has better Satori compatibility than TTF)
+    const fontPath = path.join(process.cwd(), 'public', 'fonts', 'Roboto-Bold.woff');
 
     const fontBuffer = fs.readFileSync(fontPath);
     fontCache = fontBuffer.buffer.slice(
@@ -33,7 +34,7 @@ function getRobotoFont(): ArrayBuffer {
     return fontCache;
 
   } catch (error) {
-    const fontPath = path.join(process.cwd(), 'public', 'fonts', 'Roboto-Bold.ttf');
+    const fontPath = path.join(process.cwd(), 'public', 'fonts', 'Roboto-Bold.woff');
     console.error('[IMAGE-PROCESSOR] Font load failed:', error);
     console.error('[IMAGE-PROCESSOR] Font path attempted:', fontPath);
     throw new FontLoadError(
