@@ -3,6 +3,12 @@ import { put } from '@vercel/blob';
 import { generateContentPlan } from '@/lib/gemini';
 import { createCarouselSlide, createReelFrame, normalizeImage } from '@/lib/image-processor';
 import { createReelVideo, createCarouselZip } from '@/lib/video-creator';
+import {
+  AIGenerationError,
+  FontLoadError,
+  ImageProcessingError,
+  ValidationError
+} from '@/lib/errors';
 
 export const maxDuration = 300; // 5 minutes timeout for Vercel
 
@@ -161,6 +167,37 @@ export async function POST(request: NextRequest) {
       console.log('[GENERATE] Content plan generated successfully');
     } catch (error) {
       console.error('[GENERATE] Gemini API failed:', error);
+
+      // Handle ValidationError (user/config issues)
+      if (error instanceof ValidationError) {
+        return NextResponse.json(
+          {
+            error: 'AI content validation failed',
+            details: error.message,
+            field: error.field,
+            step: 'AI Content Generation',
+          },
+          { status: 500 } // Keep 500 since it's an AI output issue, not user input
+        );
+      }
+
+      // Handle AIGenerationError (API/network issues)
+      if (error instanceof AIGenerationError) {
+        return NextResponse.json(
+          {
+            error: 'Failed to generate content with AI',
+            details: error.message,
+            isRetryable: error.isRetryable,
+            step: 'AI Content Generation',
+            suggestion: error.isRetryable
+              ? 'Please try again in a few moments. The AI service may be experiencing high load.'
+              : 'Please check your API key and configuration.',
+          },
+          { status: 500 }
+        );
+      }
+
+      // Generic error fallback
       return NextResponse.json(
         {
           error: 'Failed to generate content with AI',
@@ -207,6 +244,35 @@ export async function POST(request: NextRequest) {
       console.log('[GENERATE] All carousel slides created');
     } catch (error) {
       console.error('[GENERATE] Carousel slide creation failed:', error);
+
+      // Handle FontLoadError
+      if (error instanceof FontLoadError) {
+        return NextResponse.json(
+          {
+            error: 'Font loading error',
+            details: error.message,
+            fontPath: error.fontPath,
+            step: 'Carousel Creation',
+            suggestion: 'Please ensure the font file exists in the public/fonts/ directory.',
+          },
+          { status: 500 }
+        );
+      }
+
+      // Handle ImageProcessingError
+      if (error instanceof ImageProcessingError) {
+        return NextResponse.json(
+          {
+            error: 'Failed to create carousel slides',
+            details: error.message,
+            slideNumber: error.slideNumber,
+            step: 'Carousel Creation',
+          },
+          { status: 500 }
+        );
+      }
+
+      // Generic error fallback
       return NextResponse.json(
         {
           error: 'Failed to create carousel slides',
@@ -377,6 +443,57 @@ export async function POST(request: NextRequest) {
     });
   } catch (error) {
     console.error('[GENERATE] Unexpected error:', error);
+
+    // Handle custom error types
+    if (error instanceof ValidationError) {
+      return NextResponse.json(
+        {
+          error: 'Validation error',
+          details: error.message,
+          field: error.field,
+        },
+        { status: 400 } // User/config error
+      );
+    }
+
+    if (error instanceof FontLoadError) {
+      return NextResponse.json(
+        {
+          error: 'Font loading error',
+          details: error.message,
+          fontPath: error.fontPath,
+          suggestion: 'Please ensure the font file exists in the public/fonts/ directory.',
+        },
+        { status: 500 }
+      );
+    }
+
+    if (error instanceof ImageProcessingError) {
+      return NextResponse.json(
+        {
+          error: 'Image processing error',
+          details: error.message,
+          slideNumber: error.slideNumber,
+        },
+        { status: 500 }
+      );
+    }
+
+    if (error instanceof AIGenerationError) {
+      return NextResponse.json(
+        {
+          error: 'AI generation error',
+          details: error.message,
+          isRetryable: error.isRetryable,
+          suggestion: error.isRetryable
+            ? 'Please try again in a few moments.'
+            : 'Please check your configuration.',
+        },
+        { status: 500 }
+      );
+    }
+
+    // Generic error fallback
     return NextResponse.json(
       {
         error: 'Failed to generate content',

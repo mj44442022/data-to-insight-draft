@@ -3,6 +3,7 @@ import sharp from 'sharp';
 import { ReactElement } from 'react';
 import fs from 'fs';
 import path from 'path';
+import { FontLoadError, ImageProcessingError } from './errors';
 
 // Font cache to avoid re-reading
 let fontCache: ArrayBuffer | null = null;
@@ -32,9 +33,13 @@ function getRobotoFont(): ArrayBuffer {
     return fontCache;
 
   } catch (error) {
+    const fontPath = path.join(process.cwd(), 'public', 'fonts', 'Roboto-Bold.ttf');
     console.error('[IMAGE-PROCESSOR] Font load failed:', error);
-    console.error('[IMAGE-PROCESSOR] Font path attempted:', path.join(process.cwd(), 'public', 'fonts', 'Roboto-Bold.ttf'));
-    throw new Error('Failed to load Roboto font from public/fonts/');
+    console.error('[IMAGE-PROCESSOR] Font path attempted:', fontPath);
+    throw new FontLoadError(
+      `Failed to load Roboto font from public/fonts/. Error: ${error instanceof Error ? error.message : 'Unknown error'}`,
+      fontPath
+    );
   }
 }
 
@@ -207,7 +212,16 @@ export async function createCarouselSlide(
 
   } catch (error) {
     console.error(`[IMAGE-PROCESSOR] Failed to create slide ${slideNumber}:`, error);
-    throw new Error(`Carousel slide generation failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
+
+    // Preserve FontLoadError if already thrown
+    if (error instanceof FontLoadError) {
+      throw error;
+    }
+
+    throw new ImageProcessingError(
+      `Carousel slide generation failed: ${error instanceof Error ? error.message : 'Unknown error'}`,
+      slideNumber
+    );
   }
 }
 
@@ -341,7 +355,15 @@ export async function createReelFrame(
 
   } catch (error) {
     console.error('[IMAGE-PROCESSOR] Failed to create reel frame:', error);
-    throw new Error(`Reel frame generation failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
+
+    // Preserve FontLoadError if already thrown
+    if (error instanceof FontLoadError) {
+      throw error;
+    }
+
+    throw new ImageProcessingError(
+      `Reel frame generation failed: ${error instanceof Error ? error.message : 'Unknown error'}`
+    );
   }
 }
 

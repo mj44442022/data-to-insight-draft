@@ -1,4 +1,5 @@
 import { GoogleGenerativeAI } from '@google/generative-ai';
+import { AIGenerationError, ValidationError, retryWithBackoff, isRetryableError } from './errors';
 
 // Use placeholder during build time, real key at runtime
 const apiKey = process.env.GOOGLE_AI_API_KEY || 'placeholder-key-for-build';
@@ -25,7 +26,10 @@ async function getValidatedModel(): Promise<string> {
 
   // Only attempt validation once to avoid repeated failures
   if (modelValidationAttempted) {
-    throw new Error('Model validation failed previously. Please check your API key and available models.');
+    throw new AIGenerationError(
+      'Model validation failed previously. Please check your API key and available models.',
+      false
+    );
   }
 
   modelValidationAttempted = true;
@@ -39,13 +43,17 @@ async function getValidatedModel(): Promise<string> {
     );
 
     if (!response.ok) {
-      throw new Error(`Failed to fetch models: ${response.status} ${response.statusText}`);
+      const isRetryable = response.status === 429 || response.status === 503 || response.status === 504;
+      throw new AIGenerationError(
+        `Failed to fetch models: ${response.status} ${response.statusText}`,
+        isRetryable
+      );
     }
 
     const data = await response.json();
 
     if (!data.models || !Array.isArray(data.models)) {
-      throw new Error('Invalid response from models API');
+      throw new AIGenerationError('Invalid response from models API', false);
     }
 
     // Filter models that support generateContent
@@ -84,12 +92,19 @@ async function getValidatedModel(): Promise<string> {
       return validatedModel;
     }
 
-    throw new Error('No suitable Gemini models available for content generation');
+    throw new AIGenerationError('No suitable Gemini models available for content generation', false);
   } catch (error) {
     console.error('[GEMINI] Model validation failed:', error);
-    throw new Error(
+
+    // Preserve AIGenerationError if already thrown
+    if (error instanceof AIGenerationError) {
+      throw error;
+    }
+
+    throw new AIGenerationError(
       `Failed to validate Gemini model: ${error instanceof Error ? error.message : 'Unknown error'}. ` +
-      'Please check your API key at https://aistudio.google.com/app/apikey and ensure the Generative Language API is enabled.'
+      'Please check your API key at https://aistudio.google.com/app/apikey and ensure the Generative Language API is enabled.',
+      false
     );
   }
 }
@@ -132,11 +147,20 @@ export async function generateContentPlan(
 ): Promise<ContentPlan> {
   // Runtime check for API key
   if (!process.env.GOOGLE_AI_API_KEY) {
-    throw new Error('GOOGLE_AI_API_KEY is not set. Please add it to your .env.local file.');
+    throw new ValidationError('GOOGLE_AI_API_KEY is not set. Please add it to your .env.local file.', 'apiKey');
   }
 
-  // Validate and get the best available model
-  const modelName = await getValidatedModel();
+  // Validate and get the best available model (with retry for network errors)
+  const modelName = await retryWithBackoff(
+    async () => await getValidatedModel(),
+    {
+      maxRetries: 2,
+      initialDelay: 1000,
+      onRetry: (error, attempt) => {
+        console.log(`[GEMINI] Model validation retry ${attempt}/2: ${error.message}`);
+      }
+    }
+  );
   const model = genAI.getGenerativeModel({ model: modelName });
 
   // Shannon's 4 H's Framework guidance based on pillar
@@ -296,7 +320,22 @@ Return ONLY valid JSON in this exact format:
     },
   }));
 
-  const result = await model.generateContent([prompt, ...imageParts]);
+  // Call Gemini API with retry logic for rate limits and network errors
+  const result = await retryWithBackoff(
+    async () => await model.generateContent([prompt, ...imageParts]),
+    {
+      maxRetries: 3,
+      initialDelay: 2000,
+      maxDelay: 15000,
+      onRetry: (error, attempt) => {
+        console.log(`[GEMINI] Content generation retry ${attempt}/3: ${error.message}`);
+        if (error.message.includes('429') || error.message.includes('rate limit')) {
+          console.log('[GEMINI] Rate limit detected - backing off...');
+        }
+      }
+    }
+  );
+
   const response = await result.response;
   const text = response.text();
 
@@ -313,13 +352,19 @@ Return ONLY valid JSON in this exact format:
 
     // Validate the structure
     if (!contentPlan.strategyLogic || !contentPlan.strategyLogic.targetAvatar) {
-      throw new Error('Invalid strategy logic structure');
+      throw new ValidationError('Invalid strategy logic structure - missing targetAvatar', 'strategyLogic');
     }
     if (!contentPlan.carousel || !Array.isArray(contentPlan.carousel) || contentPlan.carousel.length !== 10) {
-      throw new Error('Invalid carousel structure');
+      throw new ValidationError(
+        `Invalid carousel structure - expected 10 slides, got ${contentPlan.carousel?.length || 0}`,
+        'carousel'
+      );
     }
     if (!contentPlan.reel || !Array.isArray(contentPlan.reel) || contentPlan.reel.length < 3 || contentPlan.reel.length > 4) {
-      throw new Error('Invalid reel structure - must have 3-4 segments');
+      throw new ValidationError(
+        `Invalid reel structure - expected 3-4 segments, got ${contentPlan.reel?.length || 0}`,
+        'reel'
+      );
     }
     // Validate visual notes in reel scenes
     const hasVisualNotes = contentPlan.reel.every(scene => scene.visualNote && scene.visualNote.length > 0);
@@ -327,7 +372,7 @@ Return ONLY valid JSON in this exact format:
       console.warn('[GEMINI] Warning: Some reel scenes missing visual notes');
     }
     if (!contentPlan.caption || !contentPlan.hashtags) {
-      throw new Error('Missing caption or hashtags');
+      throw new ValidationError('Missing caption or hashtags in AI response', 'caption');
     }
 
     console.log('[GEMINI] ✅ Titan Content Agent strategy:', {
@@ -338,7 +383,24 @@ Return ONLY valid JSON in this exact format:
 
     return contentPlan;
   } catch (error) {
-    console.error('Failed to parse Gemini response:', text);
-    throw new Error(`Failed to parse AI response: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    console.error('[GEMINI] Failed to parse Gemini response:', text.substring(0, 200) + '...');
+
+    // Preserve ValidationError if already thrown
+    if (error instanceof ValidationError) {
+      throw error;
+    }
+
+    // Check if JSON parsing failed
+    if (error instanceof SyntaxError) {
+      throw new AIGenerationError(
+        `Failed to parse AI response as JSON: ${error.message}. AI may have returned malformed content.`,
+        true // Retryable - AI might succeed on next attempt
+      );
+    }
+
+    throw new AIGenerationError(
+      `Failed to validate AI response: ${error instanceof Error ? error.message : 'Unknown error'}`,
+      false
+    );
   }
 }
