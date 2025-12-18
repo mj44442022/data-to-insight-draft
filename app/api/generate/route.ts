@@ -222,25 +222,32 @@ export async function POST(request: NextRequest) {
       console.log('[GENERATE] ✅ Images redistributed for variety');
     }
 
-    // Generate carousel slides with error handling
-    let carouselSlides: Buffer[];
+    // Generate carousel slides with SEQUENTIAL processing (prevents memory overload)
+    const carouselSlides: Buffer[] = [];
     try {
-      carouselSlides = await Promise.all(
-        contentPlan.carousel.map(async (slide, index) => {
-          try {
-            const imageIndex = slide.imageIndex % imageBuffers.length;
-            console.log(`[GENERATE] Creating carousel slide ${index + 1}/10 with image ${imageIndex}`);
-            return createCarouselSlide(
-              imageBuffers[imageIndex],
-              slide.text,
-              slide.slideNumber
-            );
-          } catch (error) {
-            console.error(`[GENERATE] Failed to create slide ${index + 1}:`, error);
-            throw new Error(`Failed to create slide ${index + 1}: ${error instanceof Error ? error.message : 'Unknown error'}`);
-          }
-        })
-      );
+      console.log('[GENERATE] Starting sequential slide generation (Memory Optimization)...');
+
+      for (let i = 0; i < contentPlan.carousel.length; i++) {
+        const slide = contentPlan.carousel[i];
+        const imageIndex = slide.imageIndex % imageBuffers.length;
+
+        try {
+          // Process ONE slide at a time to save memory
+          const slideBuffer = await createCarouselSlide(
+            imageBuffers[imageIndex],
+            slide.text,
+            slide.slideNumber
+          );
+          carouselSlides.push(slideBuffer);
+
+          // Progress log
+          console.log(`[GENERATE] ✅ Slide ${i + 1}/10 ready`);
+        } catch (error) {
+          console.error(`[GENERATE] Failed slide ${i + 1}`, error);
+          throw error;
+        }
+      }
+
       console.log('[GENERATE] All carousel slides created');
     } catch (error) {
       console.error('[GENERATE] Carousel slide creation failed:', error);

@@ -59,50 +59,35 @@ export async function createCarouselSlide(
   try {
     console.log(`[IMAGE-PROCESSOR] Creating carousel slide ${slideNumber}...`);
 
-    // Step 1: Convert image to base64 data URL for background
     const imageBase64 = imageBuffer.toString('base64');
     const imageDataUrl = `data:image/jpeg;base64,${imageBase64}`;
-
-    // Step 2: Load font from bundle (REQUIRED for Satori)
     const fontData = getRobotoFont();
 
-    // Step 3: Word wrap text (max 40 chars per line)
-    const words = text.split(' ');
-    const lines: string[] = [];
-    let currentLine = '';
-    const maxCharsPerLine = 40;
+    // DYNAMIC FONT SIZING - Adjust based on text length
+    const textLength = text.length;
+    let fontSize = 64;
+    if (textLength > 100) fontSize = 48;
+    if (textLength > 200) fontSize = 38;
 
-    for (const word of words) {
-      const testLine = currentLine ? `${currentLine} ${word}` : word;
-      if (testLine.length > maxCharsPerLine && currentLine) {
-        lines.push(currentLine);
-        currentLine = word;
-      } else {
-        currentLine = testLine;
-      }
-    }
-    if (currentLine) lines.push(currentLine);
-
-    // Step 4: Create React element for Satori
+    // CREATE STRUCTURE - Let Flexbox handle wrapping (NO manual text splitting!)
     const element: ReactElement = {
       type: 'div',
       key: null,
       ref: null,
       props: {
         style: {
-          width: '100%',
-          height: '100%',
           display: 'flex',
+          height: '100%',
+          width: '100%',
           flexDirection: 'column',
-          alignItems: 'center',
-          justifyContent: 'center',
-          position: 'relative',
+          justifyContent: 'space-between',
+          backgroundColor: '#000',
           backgroundImage: `url(${imageDataUrl})`,
           backgroundSize: 'cover',
           backgroundPosition: 'center',
         },
         children: [
-          // Dark overlay
+          // Overlay (Darken image for readability)
           {
             type: 'div',
             key: 'overlay',
@@ -111,88 +96,131 @@ export async function createCarouselSlide(
                 position: 'absolute',
                 top: 0,
                 left: 0,
-                width: '100%',
-                height: '100%',
-                backgroundColor: 'rgba(0, 0, 0, 0.5)',
+                right: 0,
+                bottom: 0,
+                backgroundColor: 'rgba(0,0,0,0.6)',
               },
             },
           },
-          // Text container
+          // Header / Branding (Top)
           {
             type: 'div',
-            key: 'text-container',
+            key: 'header',
+            props: {
+              style: {
+                display: 'flex',
+                justifyContent: 'flex-start',
+                padding: '40px 50px',
+                zIndex: 10,
+              },
+              children: [
+                {
+                  type: 'span',
+                  key: 'brand',
+                  props: {
+                    style: {
+                      color: 'rgba(255,255,255,0.8)',
+                      fontSize: 24,
+                      letterSpacing: '2px',
+                      fontWeight: 700,
+                    },
+                    children: 'CONTENTOS',
+                  },
+                },
+              ],
+            },
+          },
+          // Main Content Area (Middle) - SATORI HANDLES TEXT WRAPPING!
+          {
+            type: 'div',
+            key: 'content',
             props: {
               style: {
                 display: 'flex',
                 flexDirection: 'column',
-                alignItems: 'center',
                 justifyContent: 'center',
+                alignItems: 'flex-start',
+                padding: '0 60px',
                 zIndex: 10,
-                padding: '80px 60px',
-                textAlign: 'center',
+                flexGrow: 1,
               },
-              children: lines.map((line, i) => ({
-                type: 'div',
-                key: `line-${i}`,
-                props: {
-                  style: {
-                    fontSize: 64,
-                    fontWeight: 700,
-                    color: 'white',
-                    textShadow: '2px 2px 8px rgba(0, 0, 0, 0.8)',
-                    marginBottom: 16,
-                    lineHeight: 1.2,
+              children: [
+                {
+                  type: 'p',
+                  key: 'text',
+                  props: {
+                    style: {
+                      color: 'white',
+                      fontSize: fontSize,
+                      fontWeight: 700,
+                      lineHeight: 1.3,
+                      textShadow: '0 4px 10px rgba(0,0,0,0.5)',
+                      wordBreak: 'normal',
+                      whiteSpace: 'pre-wrap',
+                    },
+                    children: text,
                   },
-                  children: line,
                 },
-              })),
+              ],
             },
           },
-          // Footer: Slide number
+          // Footer (Bottom)
           {
             type: 'div',
-            key: 'slide-number',
+            key: 'footer',
             props: {
               style: {
-                position: 'absolute',
-                bottom: 40,
-                right: 50,
-                fontSize: 32,
-                fontWeight: 600,
-                color: 'white',
-                opacity: 0.8,
+                display: 'flex',
+                justifyContent: 'space-between',
+                alignItems: 'center',
+                padding: '40px 50px',
                 zIndex: 10,
+                borderTop: '1px solid rgba(255,255,255,0.2)',
+                margin: '0 50px 40px 50px',
               },
-              children: `${slideNumber}/10`,
-            },
-          },
-          // Footer: Branding
-          {
-            type: 'div',
-            key: 'branding',
-            props: {
-              style: {
-                position: 'absolute',
-                bottom: 40,
-                left: 50,
-                fontSize: 28,
-                fontWeight: 500,
-                color: 'white',
-                opacity: 0.7,
-                zIndex: 10,
-                letterSpacing: '0.5px',
-              },
-              children: 'Link in Bio',
+              children: [
+                {
+                  type: 'span',
+                  key: 'handle',
+                  props: {
+                    style: {
+                      color: '#FFD700',
+                      fontSize: 28,
+                      fontWeight: 700,
+                    },
+                    children: '@ContentOS',
+                  },
+                },
+                {
+                  type: 'div',
+                  key: 'number',
+                  props: {
+                    style: {
+                      backgroundColor: 'white',
+                      color: 'black',
+                      borderRadius: '50%',
+                      width: '60px',
+                      height: '60px',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      fontSize: 24,
+                      fontWeight: 900,
+                    },
+                    children: `${slideNumber}`,
+                  },
+                },
+              ],
             },
           },
         ],
       },
     } as ReactElement;
 
-    // Step 5: Generate SVG using Satori
+    // GENERATE WITH PORTRAIT RATIO (4:5 - Instagram standard)
     const svg = await satori(element, {
       width: 1080,
-      height: 1080,
+      height: 1350, // CHANGED FROM 1080 to 1350
       fonts: [
         {
           name: 'Roboto',
@@ -203,18 +231,13 @@ export async function createCarouselSlide(
       ],
     });
 
-    // Step 6: Convert SVG to PNG using Sharp (built-in SVG support)
-    const pngBuffer = await sharp(Buffer.from(svg))
-      .png()
-      .toBuffer();
+    const pngBuffer = await sharp(Buffer.from(svg)).png().toBuffer();
 
     console.log(`[IMAGE-PROCESSOR] ✅ Slide ${slideNumber} created (${pngBuffer.length} bytes)`);
     return pngBuffer;
-
   } catch (error) {
     console.error(`[IMAGE-PROCESSOR] Failed to create slide ${slideNumber}:`, error);
 
-    // Preserve FontLoadError if already thrown
     if (error instanceof FontLoadError) {
       throw error;
     }
