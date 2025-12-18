@@ -66,8 +66,8 @@ export async function createCarouselSlide(
     // DYNAMIC FONT SIZING - Adjust based on text length
     const textLength = text.length;
     let fontSize = 64;
-    if (textLength > 100) fontSize = 48;
-    if (textLength > 200) fontSize = 38;
+    if (textLength > 80) fontSize = 52;
+    if (textLength > 150) fontSize = 42;
 
     // CREATE STRUCTURE - Let Flexbox handle wrapping (NO manual text splitting!)
     const element: ReactElement = {
@@ -110,7 +110,7 @@ export async function createCarouselSlide(
               style: {
                 display: 'flex',
                 justifyContent: 'flex-start',
-                padding: '40px 50px',
+                padding: '60px 50px',
                 zIndex: 10,
               },
               children: [
@@ -119,7 +119,7 @@ export async function createCarouselSlide(
                   key: 'brand',
                   props: {
                     style: {
-                      color: 'rgba(255,255,255,0.8)',
+                      color: 'rgba(255,255,255,0.9)',
                       fontSize: 24,
                       letterSpacing: '2px',
                       fontWeight: 700,
@@ -173,10 +173,10 @@ export async function createCarouselSlide(
                 display: 'flex',
                 justifyContent: 'space-between',
                 alignItems: 'center',
-                padding: '40px 50px',
+                padding: '60px 50px',
                 zIndex: 10,
                 borderTop: '1px solid rgba(255,255,255,0.2)',
-                margin: '0 50px 40px 50px',
+                margin: '0 50px',
               },
               children: [
                 {
