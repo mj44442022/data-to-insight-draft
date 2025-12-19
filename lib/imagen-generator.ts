@@ -171,9 +171,9 @@ export async function generateImage(
     console.log(`[IMAGEN] Generating image ${slideNumber}/10 with Imagen 3...`);
 
     // Check for required environment variables
-    if (!PROJECT_ID || !process.env.GOOGLE_APPLICATION_CREDENTIALS) {
+    if (!PROJECT_ID || !process.env.GOOGLE_CREDENTIALS) {
       throw new AIGenerationError(
-        'Vertex AI credentials not configured. Set GOOGLE_CLOUD_PROJECT and GOOGLE_APPLICATION_CREDENTIALS in Vercel environment variables.',
+        'Vertex AI credentials not configured. Set GOOGLE_CLOUD_PROJECT and GOOGLE_CREDENTIALS in Vercel environment variables.',
         false
       );
     }
@@ -247,14 +247,18 @@ export async function generateImage(
  */
 async function getAuthHeader(): Promise<string> {
   try {
-    const credsPath = process.env.GOOGLE_APPLICATION_CREDENTIALS;
-    if (!credsPath) {
-      throw new Error('GOOGLE_APPLICATION_CREDENTIALS not set');
+    const credsJson = process.env.GOOGLE_CREDENTIALS;
+    if (!credsJson) {
+      throw new Error('GOOGLE_CREDENTIALS not set');
     }
 
-    // For serverless, we'll use Google Auth Library
+    // Parse credentials JSON from environment variable
+    const credentials = JSON.parse(credsJson);
+
+    // For serverless, we'll use Google Auth Library with parsed credentials
     const { GoogleAuth } = require('google-auth-library');
     const auth = new GoogleAuth({
+      credentials: credentials,
       scopes: ['https://www.googleapis.com/auth/cloud-platform'],
     });
 
@@ -270,7 +274,7 @@ async function getAuthHeader(): Promise<string> {
     console.error('[IMAGEN] Auth failed:', error);
     throw new AIGenerationError(
       `Authentication failed: ${error instanceof Error ? error.message : 'Unknown error'}. ` +
-      'Ensure GOOGLE_APPLICATION_CREDENTIALS points to a valid service account JSON file.',
+      'Ensure GOOGLE_CREDENTIALS contains valid service account JSON.',
       false
     );
   }
@@ -283,19 +287,19 @@ async function getAuthHeader(): Promise<string> {
  * 1. Individual try/catch for each image (one failure doesn't kill all)
  * 2. Timeout protection (30s per image)
  * 3. Failure tracking (abort if >50% fail)
- * 4. Always returns Buffer[] (never throws)
- * 5. Returns null if generation is impossible
+ * 4. Never throws - returns null or mixed Buffer/null array
+ * 5. Returns null if generation is impossible or credentials missing
  */
 export async function generateCarouselImages(
   brandAnalysis: BrandAnalysis,
   slideTexts: string[],
   businessDescription: string
-): Promise<Buffer[] | null> {
+): Promise<(Buffer | null)[] | null> {
   console.log('[IMAGEN] 🛡️ Starting bulletproof AI image generation...');
 
   try {
     // Pre-flight check: validate credentials
-    if (!PROJECT_ID || !process.env.GOOGLE_APPLICATION_CREDENTIALS) {
+    if (!PROJECT_ID || !process.env.GOOGLE_CREDENTIALS) {
       console.warn('[IMAGEN] Missing credentials - skipping AI generation');
       return null;
     }
@@ -359,7 +363,7 @@ export async function generateCarouselImages(
     }
 
     // Return images (mix of AI-generated and null for fallback)
-    return images as (Buffer | null)[];
+    return images;
 
   } catch (error) {
     console.error('[IMAGEN] ❌ Image generation aborted:', error);
