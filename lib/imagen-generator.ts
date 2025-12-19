@@ -8,6 +8,10 @@ const genAI = new GoogleGenerativeAI(apiKey);
 const PROJECT_ID = process.env.GOOGLE_CLOUD_PROJECT || '';
 const LOCATION = process.env.GOOGLE_CLOUD_LOCATION || 'us-central1';
 
+// Timeouts and limits
+const IMAGE_GENERATION_TIMEOUT = 30000; // 30 seconds per image
+const MAX_FAILURES_ALLOWED = 5; // If 5+ images fail, abort and use uploaded photos
+
 export interface BrandAnalysis {
   colorPalette: string[];
   visualStyle: string;
@@ -141,6 +145,22 @@ function extractConcept(slideText: string, businessDescription: string): string 
 }
 
 /**
+ * Generate a single image with timeout protection
+ */
+async function generateImageWithTimeout(
+  prompt: string,
+  slideNumber: number,
+  timeoutMs: number = IMAGE_GENERATION_TIMEOUT
+): Promise<Buffer> {
+  return Promise.race([
+    generateImage(prompt, slideNumber),
+    new Promise<Buffer>((_, reject) =>
+      setTimeout(() => reject(new Error(`Timeout after ${timeoutMs}ms`)), timeoutMs)
+    ),
+  ]);
+}
+
+/**
  * Generate a single image using Google Imagen 3 via Vertex AI
  */
 export async function generateImage(
@@ -162,7 +182,6 @@ export async function generateImage(
     const endpoint = `https://${LOCATION}-aiplatform.googleapis.com/v1/projects/${PROJECT_ID}/locations/${LOCATION}/publishers/google/models/imagen-3.0-generate-001:predict`;
 
     // Get access token from Vertex AI SDK
-    // Note: In Vercel, we'll use service account JSON directly
     const authHeader = await getAuthHeader();
 
     const response = await fetch(endpoint, {
@@ -225,11 +244,9 @@ export async function generateImage(
 
 /**
  * Get authentication header for Vertex AI API
- * Uses service account credentials from GOOGLE_APPLICATION_CREDENTIALS
  */
 async function getAuthHeader(): Promise<string> {
   try {
-    // In Vercel, we use service account JSON file
     const credsPath = process.env.GOOGLE_APPLICATION_CREDENTIALS;
     if (!credsPath) {
       throw new Error('GOOGLE_APPLICATION_CREDENTIALS not set');
@@ -260,35 +277,92 @@ async function getAuthHeader(): Promise<string> {
 }
 
 /**
- * Generate all carousel images in parallel (with rate limiting)
+ * 🛡️ BULLETPROOF IMAGE GENERATION with graceful degradation
+ *
+ * Safeguards:
+ * 1. Individual try/catch for each image (one failure doesn't kill all)
+ * 2. Timeout protection (30s per image)
+ * 3. Failure tracking (abort if >50% fail)
+ * 4. Always returns Buffer[] (never throws)
+ * 5. Returns null if generation is impossible
  */
 export async function generateCarouselImages(
   brandAnalysis: BrandAnalysis,
   slideTexts: string[],
   businessDescription: string
-): Promise<Buffer[]> {
-  console.log('[IMAGEN] Generating 10 brand-consistent carousel images...');
+): Promise<Buffer[] | null> {
+  console.log('[IMAGEN] 🛡️ Starting bulletproof AI image generation...');
 
-  // Generate all prompts
-  const prompts = generateImagePrompts(brandAnalysis, slideTexts, businessDescription);
-
-  // Generate images with rate limiting (2 at a time to avoid overwhelming API)
-  const batchSize = 2;
-  const images: Buffer[] = [];
-
-  for (let i = 0; i < prompts.length; i += batchSize) {
-    const batch = prompts.slice(i, i + batchSize);
-    const batchResults = await Promise.all(
-      batch.map((prompt, index) => generateImage(prompt, i + index + 1))
-    );
-    images.push(...batchResults);
-
-    // Small delay between batches to respect rate limits
-    if (i + batchSize < prompts.length) {
-      await new Promise(resolve => setTimeout(resolve, 1000));
+  try {
+    // Pre-flight check: validate credentials
+    if (!PROJECT_ID || !process.env.GOOGLE_APPLICATION_CREDENTIALS) {
+      console.warn('[IMAGEN] Missing credentials - skipping AI generation');
+      return null;
     }
-  }
 
-  console.log('[IMAGEN] ✅ All 10 carousel images generated successfully');
-  return images;
+    // Generate all prompts
+    const prompts = generateImagePrompts(brandAnalysis, slideTexts, businessDescription);
+    const images: (Buffer | null)[] = [];
+    let failureCount = 0;
+
+    // Generate images with rate limiting (2 at a time)
+    const batchSize = 2;
+
+    for (let i = 0; i < prompts.length; i += batchSize) {
+      const batch = prompts.slice(i, i + batchSize);
+
+      // 🛡️ Process batch with individual error handling
+      const batchResults = await Promise.all(
+        batch.map(async (prompt, index) => {
+          const slideNum = i + index + 1;
+          try {
+            // Try to generate with timeout
+            const image = await generateImageWithTimeout(prompt, slideNum);
+            return image;
+          } catch (error) {
+            failureCount++;
+            console.warn(`[IMAGEN] ⚠️ Image ${slideNum}/10 failed:`, error instanceof Error ? error.message : 'Unknown');
+
+            // 🛡️ EARLY ABORT: If >50% failed, stop trying
+            if (failureCount > MAX_FAILURES_ALLOWED) {
+              console.error(`[IMAGEN] ❌ Too many failures (${failureCount}/${slideNum}) - aborting AI generation`);
+              throw new Error('Too many image generation failures');
+            }
+
+            return null;
+          }
+        })
+      );
+
+      images.push(...batchResults);
+
+      // Delay between batches (rate limiting)
+      if (i + batchSize < prompts.length) {
+        await new Promise(resolve => setTimeout(resolve, 1000));
+      }
+    }
+
+    // 🛡️ Check results
+    const successCount = images.filter(img => img !== null).length;
+    const successRate = (successCount / images.length) * 100;
+
+    if (successCount === 0) {
+      console.error('[IMAGEN] ❌ All images failed to generate');
+      return null;
+    }
+
+    if (successCount < images.length) {
+      console.warn(`[IMAGEN] ⚠️ Partial success: ${successCount}/10 images generated (${successRate.toFixed(0)}%)`);
+      console.warn('[IMAGEN] Some slides will use uploaded photos as fallback');
+    } else {
+      console.log('[IMAGEN] ✅ All 10 images generated successfully!');
+    }
+
+    // Return images (mix of AI-generated and null for fallback)
+    return images as (Buffer | null)[];
+
+  } catch (error) {
+    console.error('[IMAGEN] ❌ Image generation aborted:', error);
+    return null;
+  }
 }

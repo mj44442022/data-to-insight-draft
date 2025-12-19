@@ -227,7 +227,8 @@ export async function POST(request: NextRequest) {
 
     // 🖼️ AI IMAGE GENERATION: Generate brand-consistent images with Imagen 3
     console.log('[GENERATE] Step 3/7: Generating AI images with Imagen 3...');
-    let aiGeneratedImages: Buffer[] | null = null;
+    let aiGeneratedImages: (Buffer | null)[] | null = null;
+    const originalImages = [...imageBuffers]; // BACKUP: Keep uploaded images for fallback
 
     if (brandAnalysis) {
       try {
@@ -237,14 +238,35 @@ export async function POST(request: NextRequest) {
           slideTexts,
           description
         );
-        console.log('[GENERATE] ✅ 10 AI-generated images created');
 
-        // Replace imageBuffers with AI-generated images
-        imageBuffers = aiGeneratedImages;
+        if (aiGeneratedImages) {
+          // 🛡️ SMART FALLBACK: Mix AI-generated and uploaded images
+          // If some AI images are null, use uploaded images as fallback
+          imageBuffers = aiGeneratedImages.map((aiImage, index) => {
+            if (aiImage) {
+              return aiImage; // Use AI-generated image
+            } else {
+              // Fallback to uploaded image (cycle through if needed)
+              const fallbackIndex = index % originalImages.length;
+              console.log(`[GENERATE] Using uploaded image ${fallbackIndex} for slide ${index + 1} (AI generation failed)`);
+              return originalImages[fallbackIndex];
+            }
+          });
+
+          const aiCount = aiGeneratedImages.filter(img => img !== null).length;
+          const uploadCount = 10 - aiCount;
+
+          if (aiCount === 10) {
+            console.log('[GENERATE] ✅ 100% AI-generated images (10/10)');
+          } else {
+            console.log(`[GENERATE] ✅ Hybrid mode: ${aiCount} AI-generated + ${uploadCount} uploaded images`);
+          }
+        } else {
+          console.warn('[GENERATE] AI generation returned null - using uploaded images');
+        }
       } catch (error) {
-        console.warn('[GENERATE] AI image generation failed, falling back to uploaded images:', error);
-        // Non-fatal: Continue with uploaded images if AI generation fails
-        aiGeneratedImages = null;
+        console.warn('[GENERATE] AI image generation failed, using uploaded images:', error);
+        // Non-fatal: imageBuffers still contains original uploaded images
       }
     } else {
       console.log('[GENERATE] Skipping AI image generation (brand analysis unavailable)');
