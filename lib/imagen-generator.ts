@@ -29,7 +29,7 @@ export async function analyzeBrandVisuals(imageBuffers: Buffer[]): Promise<Brand
   try {
     console.log('[IMAGEN] Analyzing brand visuals from uploaded photos...');
 
-    const model = genAI.getGenerativeModel({ model: 'gemini-1.5-pro-latest' });
+    const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' });
 
     // Convert images to base64 for Gemini
     const imageParts = imageBuffers.map((buffer) => ({
