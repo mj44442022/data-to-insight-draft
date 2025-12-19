@@ -3,6 +3,7 @@ import { put } from '@vercel/blob';
 import { generateContentPlan } from '@/lib/gemini';
 import { createCarouselSlide, createReelFrame, normalizeImage } from '@/lib/image-processor';
 import { createReelVideo, createCarouselZip } from '@/lib/video-creator';
+import { analyzeBrandVisuals } from '@/lib/imagen-generator';
 import {
   AIGenerationError,
   FontLoadError,
@@ -152,7 +153,23 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    console.log('[GENERATE] Step 1/5: Generating content plan with Gemini AI...');
+    // 🎨 BRAND ANALYSIS: Extract visual DNA from uploaded photos
+    console.log('[GENERATE] Step 1/6: Analyzing brand visuals from uploaded photos...');
+    let brandAnalysis;
+    try {
+      brandAnalysis = await analyzeBrandVisuals(imageBuffers);
+      console.log('[GENERATE] ✅ Brand DNA extracted:', {
+        colors: brandAnalysis.colorPalette.slice(0, 3).join(', '),
+        style: brandAnalysis.visualStyle,
+        keywords: brandAnalysis.brandKeywords.join(', ')
+      });
+    } catch (error) {
+      console.warn('[GENERATE] Brand analysis failed, continuing with uploaded images:', error);
+      // Non-fatal: Continue with uploaded images if brand analysis fails
+      brandAnalysis = null;
+    }
+
+    console.log('[GENERATE] Step 2/6: Generating content plan with Gemini AI...');
 
     // Generate content plan using Gemini with error handling
     let contentPlan;
@@ -208,7 +225,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    console.log('[GENERATE] Step 2/5: Creating carousel slides...');
+    console.log('[GENERATE] Step 3/6: Creating carousel slides...');
 
     // Validate and fix image distribution for carousel
     const carouselImageIndices = contentPlan.carousel.map(s => s.imageIndex);
@@ -290,7 +307,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    console.log('[GENERATE] Step 3/5: Creating carousel ZIP file...');
+    console.log('[GENERATE] Step 4/6: Creating carousel ZIP file...');
 
     // Create carousel ZIP with error handling
     let carouselZip: Buffer;
@@ -310,7 +327,7 @@ export async function POST(request: NextRequest) {
     }
 
     // 🎯 STRATEGIC PIVOT: Skip reel frame/video generation - focus on carousel + script only
-    // console.log('[GENERATE] Step 4/5: Creating reel frames...');
+    // console.log('[GENERATE] Step 5/6: Creating reel frames...');
     // Validate and fix image distribution for reel
     const reelImageIndices = contentPlan.reel.map(s => s.imageIndex);
     const uniqueReelImages = new Set(reelImageIndices).size;
@@ -359,7 +376,7 @@ export async function POST(request: NextRequest) {
       console.log('[GENERATE] 🗑️ Garbage collection triggered after carousel generation');
     }
 
-    console.log('[GENERATE] Step 4/4: Preparing reel script with visual direction notes...');
+    console.log('[GENERATE] Step 5/6: Preparing reel script with visual direction notes...');
     console.log('[GENERATE] ✅ Reel script ready with visual direction notes (frames/video generation disabled)');
 
     // 🎯 SMART STORAGE: Use Vercel Blob in production, base64 fallback for local dev
