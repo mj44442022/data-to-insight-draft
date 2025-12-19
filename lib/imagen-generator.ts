@@ -4,6 +4,10 @@ import { AIGenerationError } from './errors';
 const apiKey = process.env.GOOGLE_AI_API_KEY || 'placeholder-key-for-build';
 const genAI = new GoogleGenerativeAI(apiKey);
 
+// Vertex AI configuration
+const PROJECT_ID = process.env.GOOGLE_CLOUD_PROJECT || '';
+const LOCATION = process.env.GOOGLE_CLOUD_LOCATION || 'us-central1';
+
 export interface BrandAnalysis {
   colorPalette: string[];
   visualStyle: string;
@@ -115,7 +119,7 @@ function extractConcept(slideText: string, businessDescription: string): string 
   // Remove common filler words and extract key themes
   const text = slideText.toLowerCase();
 
-  // Simple concept extraction (you can enhance this with NLP)
+  // Simple concept extraction
   if (text.includes('grow') || text.includes('scale') || text.includes('increase')) {
     return 'growth and success';
   }
@@ -137,50 +141,154 @@ function extractConcept(slideText: string, businessDescription: string): string 
 }
 
 /**
- * Generate a single image using Google Imagen 3
- * NOTE: Imagen 3 is available via Vertex AI, not directly through generative-ai SDK
- * This requires Google Cloud project setup with Vertex AI enabled
+ * Generate a single image using Google Imagen 3 via Vertex AI
  */
 export async function generateImage(
   prompt: string,
   slideNumber: number
 ): Promise<Buffer> {
   try {
-    console.log(`[IMAGEN] Generating image for slide ${slideNumber}...`);
+    console.log(`[IMAGEN] Generating image ${slideNumber}/10 with Imagen 3...`);
 
-    // IMPORTANT: Imagen 3 requires Vertex AI API
-    // For now, we'll return a placeholder until Vertex AI is set up
-    // The user will need to:
-    // 1. Enable Vertex AI API in Google Cloud Console
-    // 2. Set up authentication (GOOGLE_APPLICATION_CREDENTIALS)
-    // 3. Install @google-cloud/aiplatform package
+    // Check for required environment variables
+    if (!PROJECT_ID || !process.env.GOOGLE_APPLICATION_CREDENTIALS) {
+      throw new AIGenerationError(
+        'Vertex AI credentials not configured. Set GOOGLE_CLOUD_PROJECT and GOOGLE_APPLICATION_CREDENTIALS in Vercel environment variables.',
+        false
+      );
+    }
 
-    throw new AIGenerationError(
-      'Imagen 3 requires Vertex AI setup. Please enable Vertex AI API in Google Cloud Console. ' +
-      'For now, falling back to uploaded images.',
-      false
-    );
+    // Vertex AI REST API endpoint for Imagen 3
+    const endpoint = `https://${LOCATION}-aiplatform.googleapis.com/v1/projects/${PROJECT_ID}/locations/${LOCATION}/publishers/google/models/imagen-3.0-generate-001:predict`;
 
-    // TODO: Implement Imagen 3 API call when Vertex AI is enabled
-    // const endpoint = `https://${location}-aiplatform.googleapis.com/v1/projects/${projectId}/locations/${location}/publishers/google/models/imagen-3.0-generate-001:predict`;
-    // const response = await fetch(endpoint, {
-    //   method: 'POST',
-    //   headers: {
-    //     'Authorization': `Bearer ${accessToken}`,
-    //     'Content-Type': 'application/json',
-    //   },
-    //   body: JSON.stringify({
-    //     instances: [{ prompt }],
-    //     parameters: {
-    //       sampleCount: 1,
-    //       aspectRatio: '4:5', // Instagram portrait
-    //       negativePrompt: 'text, watermark, low quality, blurry',
-    //     },
-    //   }),
-    // });
+    // Get access token from Vertex AI SDK
+    // Note: In Vercel, we'll use service account JSON directly
+    const authHeader = await getAuthHeader();
 
+    const response = await fetch(endpoint, {
+      method: 'POST',
+      headers: {
+        'Authorization': authHeader,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        instances: [
+          {
+            prompt: prompt
+          }
+        ],
+        parameters: {
+          sampleCount: 1,
+          aspectRatio: '4:5', // Instagram portrait ratio (1080x1350)
+          negativePrompt: 'text, watermark, logo, low quality, blurry, distorted, cartoon, anime',
+          seed: slideNumber, // Consistent generation for same slide
+        }
+      }),
+    });
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.error(`[IMAGEN] API Error ${response.status}:`, errorText);
+      throw new AIGenerationError(
+        `Imagen 3 API failed: ${response.status} ${response.statusText}`,
+        response.status === 429 || response.status >= 500
+      );
+    }
+
+    const result = await response.json();
+
+    // Extract base64 image from response
+    if (!result.predictions || !result.predictions[0] || !result.predictions[0].bytesBase64Encoded) {
+      throw new AIGenerationError('Invalid response from Imagen 3 API - no image data', false);
+    }
+
+    const imageBase64 = result.predictions[0].bytesBase64Encoded;
+    const imageBuffer = Buffer.from(imageBase64, 'base64');
+
+    console.log(`[IMAGEN] ✅ Image ${slideNumber}/10 generated (${(imageBuffer.length / 1024).toFixed(2)}KB)`);
+
+    return imageBuffer;
   } catch (error) {
     console.error(`[IMAGEN] Image generation failed for slide ${slideNumber}:`, error);
-    throw error;
+
+    // Preserve AIGenerationError if already thrown
+    if (error instanceof AIGenerationError) {
+      throw error;
+    }
+
+    throw new AIGenerationError(
+      `Failed to generate image: ${error instanceof Error ? error.message : 'Unknown error'}`,
+      false
+    );
   }
+}
+
+/**
+ * Get authentication header for Vertex AI API
+ * Uses service account credentials from GOOGLE_APPLICATION_CREDENTIALS
+ */
+async function getAuthHeader(): Promise<string> {
+  try {
+    // In Vercel, we use service account JSON file
+    const credsPath = process.env.GOOGLE_APPLICATION_CREDENTIALS;
+    if (!credsPath) {
+      throw new Error('GOOGLE_APPLICATION_CREDENTIALS not set');
+    }
+
+    // For serverless, we'll use Google Auth Library
+    const { GoogleAuth } = require('google-auth-library');
+    const auth = new GoogleAuth({
+      scopes: ['https://www.googleapis.com/auth/cloud-platform'],
+    });
+
+    const client = await auth.getClient();
+    const accessToken = await client.getAccessToken();
+
+    if (!accessToken.token) {
+      throw new Error('Failed to obtain access token');
+    }
+
+    return `Bearer ${accessToken.token}`;
+  } catch (error) {
+    console.error('[IMAGEN] Auth failed:', error);
+    throw new AIGenerationError(
+      `Authentication failed: ${error instanceof Error ? error.message : 'Unknown error'}. ` +
+      'Ensure GOOGLE_APPLICATION_CREDENTIALS points to a valid service account JSON file.',
+      false
+    );
+  }
+}
+
+/**
+ * Generate all carousel images in parallel (with rate limiting)
+ */
+export async function generateCarouselImages(
+  brandAnalysis: BrandAnalysis,
+  slideTexts: string[],
+  businessDescription: string
+): Promise<Buffer[]> {
+  console.log('[IMAGEN] Generating 10 brand-consistent carousel images...');
+
+  // Generate all prompts
+  const prompts = generateImagePrompts(brandAnalysis, slideTexts, businessDescription);
+
+  // Generate images with rate limiting (2 at a time to avoid overwhelming API)
+  const batchSize = 2;
+  const images: Buffer[] = [];
+
+  for (let i = 0; i < prompts.length; i += batchSize) {
+    const batch = prompts.slice(i, i + batchSize);
+    const batchResults = await Promise.all(
+      batch.map((prompt, index) => generateImage(prompt, i + index + 1))
+    );
+    images.push(...batchResults);
+
+    // Small delay between batches to respect rate limits
+    if (i + batchSize < prompts.length) {
+      await new Promise(resolve => setTimeout(resolve, 1000));
+    }
+  }
+
+  console.log('[IMAGEN] ✅ All 10 carousel images generated successfully');
+  return images;
 }

@@ -3,7 +3,7 @@ import { put } from '@vercel/blob';
 import { generateContentPlan } from '@/lib/gemini';
 import { createCarouselSlide, createReelFrame, normalizeImage } from '@/lib/image-processor';
 import { createReelVideo, createCarouselZip } from '@/lib/video-creator';
-import { analyzeBrandVisuals } from '@/lib/imagen-generator';
+import { analyzeBrandVisuals, generateCarouselImages } from '@/lib/imagen-generator';
 import {
   AIGenerationError,
   FontLoadError,
@@ -154,7 +154,7 @@ export async function POST(request: NextRequest) {
     }
 
     // 🎨 BRAND ANALYSIS: Extract visual DNA from uploaded photos
-    console.log('[GENERATE] Step 1/6: Analyzing brand visuals from uploaded photos...');
+    console.log('[GENERATE] Step 1/7: Analyzing brand visuals from uploaded photos...');
     let brandAnalysis;
     try {
       brandAnalysis = await analyzeBrandVisuals(imageBuffers);
@@ -169,7 +169,7 @@ export async function POST(request: NextRequest) {
       brandAnalysis = null;
     }
 
-    console.log('[GENERATE] Step 2/6: Generating content plan with Gemini AI...');
+    console.log('[GENERATE] Step 2/7: Generating content plan with Gemini AI...');
 
     // Generate content plan using Gemini with error handling
     let contentPlan;
@@ -225,7 +225,32 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    console.log('[GENERATE] Step 3/6: Creating carousel slides...');
+    // 🖼️ AI IMAGE GENERATION: Generate brand-consistent images with Imagen 3
+    console.log('[GENERATE] Step 3/7: Generating AI images with Imagen 3...');
+    let aiGeneratedImages: Buffer[] | null = null;
+
+    if (brandAnalysis) {
+      try {
+        const slideTexts = contentPlan.carousel.map(slide => slide.text);
+        aiGeneratedImages = await generateCarouselImages(
+          brandAnalysis,
+          slideTexts,
+          description
+        );
+        console.log('[GENERATE] ✅ 10 AI-generated images created');
+
+        // Replace imageBuffers with AI-generated images
+        imageBuffers = aiGeneratedImages;
+      } catch (error) {
+        console.warn('[GENERATE] AI image generation failed, falling back to uploaded images:', error);
+        // Non-fatal: Continue with uploaded images if AI generation fails
+        aiGeneratedImages = null;
+      }
+    } else {
+      console.log('[GENERATE] Skipping AI image generation (brand analysis unavailable)');
+    }
+
+    console.log('[GENERATE] Step 4/7: Creating carousel slides...');
 
     // Validate and fix image distribution for carousel
     const carouselImageIndices = contentPlan.carousel.map(s => s.imageIndex);
@@ -307,7 +332,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    console.log('[GENERATE] Step 4/6: Creating carousel ZIP file...');
+    console.log('[GENERATE] Step 5/7: Creating carousel ZIP file...');
 
     // Create carousel ZIP with error handling
     let carouselZip: Buffer;
@@ -327,7 +352,7 @@ export async function POST(request: NextRequest) {
     }
 
     // 🎯 STRATEGIC PIVOT: Skip reel frame/video generation - focus on carousel + script only
-    // console.log('[GENERATE] Step 5/6: Creating reel frames...');
+    // console.log('[GENERATE] Step 6/7: Creating reel frames...');
     // Validate and fix image distribution for reel
     const reelImageIndices = contentPlan.reel.map(s => s.imageIndex);
     const uniqueReelImages = new Set(reelImageIndices).size;
@@ -376,7 +401,7 @@ export async function POST(request: NextRequest) {
       console.log('[GENERATE] 🗑️ Garbage collection triggered after carousel generation');
     }
 
-    console.log('[GENERATE] Step 5/6: Preparing reel script with visual direction notes...');
+    console.log('[GENERATE] Step 6/7: Preparing reel script with visual direction notes...');
     console.log('[GENERATE] ✅ Reel script ready with visual direction notes (frames/video generation disabled)');
 
     // 🎯 SMART STORAGE: Use Vercel Blob in production, base64 fallback for local dev
