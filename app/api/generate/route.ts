@@ -229,9 +229,11 @@ export async function POST(request: NextRequest) {
     console.log('[GENERATE] Step 3/7: Generating AI images with Imagen 3...');
     let aiGeneratedImages: (Buffer | null)[] | null = null;
     const originalImages = [...imageBuffers]; // BACKUP: Keep uploaded images for fallback
+    let imageGenError: string | null = null;
 
     if (brandAnalysis) {
       try {
+        console.log('[GENERATE] 🎯 Starting AI image generation with brand DNA...');
         const slideTexts = contentPlan.carousel.map(slide => slide.text);
         aiGeneratedImages = await generateCarouselImages(
           brandAnalysis,
@@ -262,14 +264,24 @@ export async function POST(request: NextRequest) {
             console.log(`[GENERATE] ✅ Hybrid mode: ${aiCount} AI-generated + ${uploadCount} uploaded images`);
           }
         } else {
-          console.warn('[GENERATE] AI generation returned null - using uploaded images');
+          const fallbackMsg = 'AI generation returned null - using uploaded images';
+          console.warn('[GENERATE] ⚠️', fallbackMsg);
+          console.warn('[GENERATE] 💡 Check logs above for detailed error messages');
+          imageGenError = fallbackMsg;
         }
       } catch (error) {
-        console.warn('[GENERATE] AI image generation failed, using uploaded images:', error);
+        const errorMsg = error instanceof Error ? error.message : 'Unknown error';
+        console.error('[GENERATE] ❌ AI image generation failed:', errorMsg);
+        console.error('[GENERATE] 🔄 Using uploaded images as fallback');
+        if (error instanceof Error && error.stack) {
+          console.error('[GENERATE] 📚 Full error:', error.stack);
+        }
+        imageGenError = errorMsg;
         // Non-fatal: imageBuffers still contains original uploaded images
       }
     } else {
       console.log('[GENERATE] Skipping AI image generation (brand analysis unavailable)');
+      imageGenError = 'Brand analysis unavailable';
     }
 
     console.log('[GENERATE] Step 4/7: Creating carousel slides...');
@@ -511,6 +523,13 @@ export async function POST(request: NextRequest) {
       caption: contentPlan.caption,
       hashtags: contentPlan.hashtags,
       generationTime: totalTime,
+      // 🐛 DEBUG INFO: Error details for troubleshooting
+      debug: {
+        imageGenerationError: imageGenError,
+        aiImagesUsed: aiGeneratedImages ? aiGeneratedImages.filter(img => img !== null).length : 0,
+        uploadedImagesUsed: aiGeneratedImages ? aiGeneratedImages.filter(img => img === null).length : 10,
+        brandAnalysisSuccess: brandAnalysis !== null,
+      }
     });
   } catch (error) {
     console.error('[GENERATE] Unexpected error:', error);

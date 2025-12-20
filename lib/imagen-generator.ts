@@ -155,54 +155,79 @@ async function generateSingleImage(
   slideNumber: number
 ): Promise<Buffer> {
   console.log(`[IMAGE-GEN] 🎨 Generating image ${slideNumber}/10 with Imagen 3...`);
+  console.log(`[IMAGE-GEN] 📝 Prompt length: ${prompt.length} characters`);
 
   if (!API_KEY) {
-    throw new Error('❌ GOOGLE_GENERATIVE_AI_API_KEY is not set');
+    const error = '❌ GOOGLE_GENERATIVE_AI_API_KEY is not set';
+    console.error(`[IMAGE-GEN] ${error}`);
+    throw new Error(error);
   }
 
   // 🌐 Imagen 3 endpoint via Google AI Studio (Simple API)
   const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/imagen-3.0-generate-001:predict?key=${API_KEY}`;
+  console.log(`[IMAGE-GEN] 🌐 Calling endpoint: ${endpoint.split('?')[0]}`);
 
-  const response = await fetch(endpoint, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify({
-      instances: [
-        {
-          prompt: prompt
+  try {
+    const response = await fetch(endpoint, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        instances: [
+          {
+            prompt: prompt
+          }
+        ],
+        parameters: {
+          sampleCount: 1,
+          aspectRatio: '4:5', // Instagram portrait ratio
+          negativePrompt: 'text, watermark, logo, low quality, blurry, distorted, cartoon, anime',
+          seed: slideNumber,
         }
-      ],
-      parameters: {
-        sampleCount: 1,
-        aspectRatio: '4:5', // Instagram portrait ratio
-        negativePrompt: 'text, watermark, logo, low quality, blurry, distorted, cartoon, anime',
-        seed: slideNumber,
+      }),
+    });
+
+    console.log(`[IMAGE-GEN] 📡 Response status: ${response.status} ${response.statusText}`);
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.error(`[IMAGE-GEN] ❌ API Error ${response.status}:`, errorText);
+      console.error(`[IMAGE-GEN] 🔍 Full error response:`, errorText);
+
+      // Parse error for better messaging
+      let errorDetail = errorText;
+      try {
+        const errorJson = JSON.parse(errorText);
+        errorDetail = JSON.stringify(errorJson, null, 2);
+        console.error(`[IMAGE-GEN] 📋 Parsed error:`, errorJson);
+      } catch (e) {
+        // Not JSON, use raw text
       }
-    }),
-  });
 
-  if (!response.ok) {
-    const errorText = await response.text();
-    console.error(`[IMAGE-GEN] ❌ API Error ${response.status}:`, errorText);
-    throw new Error(`Imagen 3 API failed: ${response.status} ${response.statusText} - ${errorText}`);
+      throw new Error(`Imagen 3 API failed: ${response.status} ${response.statusText}\nDetails: ${errorDetail}`);
+    }
+
+    const result = await response.json();
+    console.log(`[IMAGE-GEN] 📦 Response keys:`, Object.keys(result));
+
+    // Extract base64 image from response
+    if (!result.predictions || !result.predictions[0] || !result.predictions[0].bytesBase64Encoded) {
+      console.error('[IMAGE-GEN] ❌ Invalid API response structure:', JSON.stringify(result, null, 2));
+      console.error('[IMAGE-GEN] 💡 Expected: result.predictions[0].bytesBase64Encoded');
+      throw new Error(`Invalid response from Imagen 3 API - no image data. Got: ${JSON.stringify(result)}`);
+    }
+
+    const imageBase64 = result.predictions[0].bytesBase64Encoded;
+    const imageBuffer = Buffer.from(imageBase64, 'base64');
+
+    console.log(`[IMAGE-GEN] ✅ Image ${slideNumber}/10 generated (${(imageBuffer.length / 1024).toFixed(2)}KB)`);
+
+    return imageBuffer;
+  } catch (fetchError) {
+    console.error(`[IMAGE-GEN] 💥 Fetch error:`, fetchError);
+    throw fetchError;
   }
-
-  const result = await response.json();
-
-  // Extract base64 image from response
-  if (!result.predictions || !result.predictions[0] || !result.predictions[0].bytesBase64Encoded) {
-    console.error('[IMAGE-GEN] ❌ Invalid API response:', JSON.stringify(result));
-    throw new Error('Invalid response from Imagen 3 API - no image data');
-  }
-
-  const imageBase64 = result.predictions[0].bytesBase64Encoded;
-  const imageBuffer = Buffer.from(imageBase64, 'base64');
-
-  console.log(`[IMAGE-GEN] ✅ Image ${slideNumber}/10 generated (${(imageBuffer.length / 1024).toFixed(2)}KB)`);
-
-  return imageBuffer;
 }
 
 // ---------------------------------------------------------
@@ -267,16 +292,23 @@ export async function generateCarouselImages(
           } catch (error) {
             failureCount++;
             const errorMsg = error instanceof Error ? error.message : 'Unknown error';
-            console.warn(`[IMAGE-GEN] ⚠️ Image ${slideNum}/10 failed:`, errorMsg);
+            console.error(`[IMAGE-GEN] ⚠️ Image ${slideNum}/10 failed:`, errorMsg);
+
+            // Log full error details
+            if (error instanceof Error && error.stack) {
+              console.error(`[IMAGE-GEN] 📚 Stack trace:`, error.stack);
+            }
 
             // 🛑 EARLY ABORT: If >50% failed, stop trying
             if (failureCount > MAX_FAILURES_ALLOWED) {
               console.error(`[IMAGE-GEN] ❌ Too many failures (${failureCount}/${slideNum})`);
               console.error('[IMAGE-GEN] 💡 Possible issues:');
-              console.error('[IMAGE-GEN]    1. API key lacks Imagen 3 access');
-              console.error('[IMAGE-GEN]    2. Quota exceeded');
-              console.error('[IMAGE-GEN]    3. Imagen 3 not available in your region');
-              throw new Error('Too many image generation failures');
+              console.error('[IMAGE-GEN]    1. Imagen 3 endpoint not available via AI Studio API');
+              console.error('[IMAGE-GEN]    2. API key lacks Imagen 3 access');
+              console.error('[IMAGE-GEN]    3. Quota exceeded');
+              console.error('[IMAGE-GEN]    4. Imagen 3 not available in your region');
+              console.error('[IMAGE-GEN] 🔧 Last error was:', errorMsg);
+              throw new Error(`Too many image generation failures. Last error: ${errorMsg}`);
             }
 
             return null;
