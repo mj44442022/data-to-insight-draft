@@ -10,10 +10,12 @@
     "lint": "next lint"
   },
   "dependencies": {
+    "@ai-sdk/google": "^2.0.51",
     "@fontsource/roboto": "^5.2.9",
     "@google-cloud/aiplatform": "^6.0.0",
     "@google/generative-ai": "^0.21.0",
     "@vercel/blob": "^2.0.0",
+    "ai": "^5.0.116",
     "archiver": "^7.0.1",
     "file-saver": "^2.0.5",
     "fluent-ffmpeg": "^2.1.3",

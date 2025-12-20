@@ -1,10 +1,8 @@
-import { GoogleGenerativeAI } from '@google/generative-ai';
+import { google } from '@ai-sdk/google';
+import { generateText } from 'ai';
 import { AIGenerationError } from './errors';
 
-const apiKey = process.env.GOOGLE_AI_API_KEY || 'placeholder-key-for-build';
-const genAI = new GoogleGenerativeAI(apiKey);
-
-// Vertex AI configuration
+// Vertex AI configuration for Imagen 3 image generation
 const PROJECT_ID = process.env.GOOGLE_CLOUD_PROJECT || '';
 const LOCATION = process.env.GOOGLE_CLOUD_LOCATION || 'us-central1';
 
@@ -23,21 +21,11 @@ export interface BrandAnalysis {
 
 /**
  * Analyze uploaded photos to extract brand visual patterns
- * This creates a "brand DNA" that guides AI image generation
+ * Uses Vercel AI SDK with Gemini 2.0 Flash (fixes 404 errors)
  */
 export async function analyzeBrandVisuals(imageBuffers: Buffer[]): Promise<BrandAnalysis> {
   try {
     console.log('[IMAGEN] Analyzing brand visuals from uploaded photos...');
-
-    const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' });
-
-    // Convert images to base64 for Gemini
-    const imageParts = imageBuffers.map((buffer) => ({
-      inlineData: {
-        data: buffer.toString('base64'),
-        mimeType: 'image/jpeg',
-      },
-    }));
 
     const prompt = `# BRAND VISUAL ANALYSIS TASK
 
@@ -62,18 +50,32 @@ Return ONLY valid JSON in this exact format:
   "brandKeywords": ["modern", "professional", "clean", "trustworthy"]
 }`;
 
-    const result = await model.generateContent([prompt, ...imageParts]);
-    const response = await result.response;
-    let text = response.text().trim();
+    // Use Vercel AI SDK with Gemini 2.0 Flash
+    const { text } = await generateText({
+      model: google('gemini-2.0-flash-exp'),
+      messages: [
+        {
+          role: 'user',
+          content: [
+            { type: 'text', text: prompt },
+            ...imageBuffers.map(buffer => ({
+              type: 'image' as const,
+              image: buffer,
+            })),
+          ],
+        },
+      ],
+    });
 
     // Extract JSON from markdown code blocks
-    if (text.startsWith('```json')) {
-      text = text.replace(/```json\n?/g, '').replace(/```\n?$/g, '');
-    } else if (text.startsWith('```')) {
-      text = text.replace(/```\n?/g, '').replace(/```\n?$/g, '');
+    let cleanText = text.trim();
+    if (cleanText.startsWith('```json')) {
+      cleanText = cleanText.replace(/```json\n?/g, '').replace(/```\n?$/g, '');
+    } else if (cleanText.startsWith('```')) {
+      cleanText = cleanText.replace(/```\n?/g, '').replace(/```\n?$/g, '');
     }
 
-    const analysis: BrandAnalysis = JSON.parse(text);
+    const analysis: BrandAnalysis = JSON.parse(cleanText);
 
     console.log('[IMAGEN] ✅ Brand analysis complete:', {
       colors: analysis.colorPalette.join(', '),
