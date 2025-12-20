@@ -163,8 +163,8 @@ async function generateSingleImage(
     throw new Error(error);
   }
 
-  // 🌐 Imagen 3 endpoint via Google AI Studio (Simple API)
-  const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/imagen-3.0-generate-001:predict?key=${API_KEY}`;
+  // 🌐 Gemini Image Generation endpoint (gemini-2.0-flash-exp-image-generation)
+  const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-exp-image-generation:generateContent?key=${API_KEY}`;
   console.log(`[IMAGE-GEN] 🌐 Calling endpoint: ${endpoint.split('?')[0]}`);
 
   try {
@@ -174,16 +174,18 @@ async function generateSingleImage(
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        instances: [
+        contents: [
           {
-            prompt: prompt
+            parts: [
+              {
+                text: `${prompt}\n\nImage specifications: High-quality, photorealistic, 4:5 aspect ratio (Instagram portrait 1080x1350), no text, no watermarks, professional photography.`
+              }
+            ]
           }
         ],
-        parameters: {
-          sampleCount: 1,
-          aspectRatio: '4:5', // Instagram portrait ratio
-          negativePrompt: 'text, watermark, logo, low quality, blurry, distorted, cartoon, anime',
-          seed: slideNumber,
+        generationConfig: {
+          temperature: 0.4,
+          candidateCount: 1,
         }
       }),
     });
@@ -211,19 +213,33 @@ async function generateSingleImage(
     const result = await response.json();
     console.log(`[IMAGE-GEN] 📦 Response keys:`, Object.keys(result));
 
-    // Extract base64 image from response
-    if (!result.predictions || !result.predictions[0] || !result.predictions[0].bytesBase64Encoded) {
+    // Extract base64 image from Gemini response
+    // Expected format: result.candidates[0].content.parts[0].inlineData.data
+    if (!result.candidates || !result.candidates[0]) {
       console.error('[IMAGE-GEN] ❌ Invalid API response structure:', JSON.stringify(result, null, 2));
-      console.error('[IMAGE-GEN] 💡 Expected: result.predictions[0].bytesBase64Encoded');
-      throw new Error(`Invalid response from Imagen 3 API - no image data. Got: ${JSON.stringify(result)}`);
+      console.error('[IMAGE-GEN] 💡 Expected: result.candidates[0].content.parts[0]');
+      throw new Error(`Invalid response from Gemini Image Gen API - no candidates. Got: ${JSON.stringify(result)}`);
     }
 
-    const imageBase64 = result.predictions[0].bytesBase64Encoded;
-    const imageBuffer = Buffer.from(imageBase64, 'base64');
+    const candidate = result.candidates[0];
+    if (!candidate.content || !candidate.content.parts || !candidate.content.parts[0]) {
+      console.error('[IMAGE-GEN] ❌ Invalid candidate structure:', JSON.stringify(candidate, null, 2));
+      throw new Error(`Invalid response - no content parts. Got: ${JSON.stringify(candidate)}`);
+    }
 
-    console.log(`[IMAGE-GEN] ✅ Image ${slideNumber}/10 generated (${(imageBuffer.length / 1024).toFixed(2)}KB)`);
+    const part = candidate.content.parts[0];
 
-    return imageBuffer;
+    // Check for inline image data
+    if (part.inlineData && part.inlineData.data) {
+      const imageBase64 = part.inlineData.data;
+      const imageBuffer = Buffer.from(imageBase64, 'base64');
+      console.log(`[IMAGE-GEN] ✅ Image ${slideNumber}/10 generated (${(imageBuffer.length / 1024).toFixed(2)}KB)`);
+      return imageBuffer;
+    }
+
+    // If no inline data, log what we got
+    console.error('[IMAGE-GEN] ❌ No inlineData found in part:', JSON.stringify(part, null, 2));
+    throw new Error(`No image data in response. Part contains: ${Object.keys(part).join(', ')}`);
   } catch (fetchError) {
     console.error(`[IMAGE-GEN] 💥 Fetch error:`, fetchError);
     throw fetchError;
