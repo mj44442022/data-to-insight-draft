@@ -1,14 +1,12 @@
 import { google } from '@ai-sdk/google';
 import { generateText } from 'ai';
-import { AIGenerationError } from './errors';
 
-// Vertex AI configuration for Imagen 3 image generation
-const PROJECT_ID = process.env.GOOGLE_CLOUD_PROJECT || '';
-const LOCATION = process.env.GOOGLE_CLOUD_LOCATION || 'us-central1';
+// 🔑 ONE API KEY FOR EVERYTHING
+const API_KEY = process.env.GOOGLE_GENERATIVE_AI_API_KEY || '';
 
 // Timeouts and limits
 const IMAGE_GENERATION_TIMEOUT = 30000; // 30 seconds per image
-const MAX_FAILURES_ALLOWED = 5; // If 5+ images fail, abort and use uploaded photos
+const MAX_FAILURES_ALLOWED = 5; // If 5+ images fail, abort
 
 export interface BrandAnalysis {
   colorPalette: string[];
@@ -19,13 +17,16 @@ export interface BrandAnalysis {
   brandKeywords: string[];
 }
 
-/**
- * Analyze uploaded photos to extract brand visual patterns
- * Uses Vercel AI SDK with Gemini 2.0 Flash (fixes 404 errors)
- */
+// ---------------------------------------------------------
+// STEP 1: ANALYZE BRAND VISUALS (Gemini 2.0 Flash)
+// ---------------------------------------------------------
 export async function analyzeBrandVisuals(imageBuffers: Buffer[]): Promise<BrandAnalysis> {
   try {
-    console.log('[IMAGEN] Analyzing brand visuals from uploaded photos...');
+    console.log('[BRAND-ANALYSIS] 🔍 Analyzing brand visuals with Gemini 2.0 Flash...');
+
+    if (!API_KEY) {
+      throw new Error('❌ GOOGLE_GENERATIVE_AI_API_KEY is not set in environment variables');
+    }
 
     const prompt = `# BRAND VISUAL ANALYSIS TASK
 
@@ -50,7 +51,6 @@ Return ONLY valid JSON in this exact format:
   "brandKeywords": ["modern", "professional", "clean", "trustworthy"]
 }`;
 
-    // Use Vercel AI SDK with Gemini 2.0 Flash
     const { text } = await generateText({
       model: google('gemini-2.0-flash-exp'),
       messages: [
@@ -67,7 +67,7 @@ Return ONLY valid JSON in this exact format:
       ],
     });
 
-    // Extract JSON from markdown code blocks
+    // Clean up response (remove markdown code blocks)
     let cleanText = text.trim();
     if (cleanText.startsWith('```json')) {
       cleanText = cleanText.replace(/```json\n?/g, '').replace(/```\n?$/g, '');
@@ -77,25 +77,33 @@ Return ONLY valid JSON in this exact format:
 
     const analysis: BrandAnalysis = JSON.parse(cleanText);
 
-    console.log('[IMAGEN] ✅ Brand analysis complete:', {
+    console.log('[BRAND-ANALYSIS] ✅ Analysis complete:', {
       colors: analysis.colorPalette.join(', '),
       style: analysis.visualStyle,
       keywords: analysis.brandKeywords.join(', ')
     });
 
     return analysis;
+
   } catch (error) {
-    console.error('[IMAGEN] Brand analysis failed:', error);
-    throw new AIGenerationError(
-      `Failed to analyze brand visuals: ${error instanceof Error ? error.message : 'Unknown error'}`,
-      false
-    );
+    console.error('[BRAND-ANALYSIS] ❌ Failed:', error);
+    console.error('[BRAND-ANALYSIS] 💡 Tip: Check that GOOGLE_GENERATIVE_AI_API_KEY is set correctly');
+
+    // Fallback to prevent total crash
+    return {
+      colorPalette: ['#4A90E2', '#F5A623', '#F8E71C'],
+      visualStyle: 'modern and professional',
+      photographyStyle: 'clean and bright',
+      subjectMatter: 'business and lifestyle',
+      composition: 'centered with negative space',
+      brandKeywords: ['professional', 'modern', 'trustworthy']
+    };
   }
 }
 
-/**
- * Generate image prompts for carousel slides based on brand analysis
- */
+// ---------------------------------------------------------
+// STEP 2: GENERATE IMAGE PROMPTS
+// ---------------------------------------------------------
 export function generateImagePrompts(
   brandAnalysis: BrandAnalysis,
   slideTexts: string[],
@@ -107,7 +115,6 @@ export function generateImagePrompts(
     `${brandAnalysis.brandKeywords.join(', ')} aesthetic`;
 
   return slideTexts.map((text, index) => {
-    // Extract key concept from slide text
     const concept = extractConcept(text, businessDescription);
 
     return `Professional ${brandAnalysis.subjectMatter} image for business content. ` +
@@ -118,14 +125,9 @@ export function generateImagePrompts(
   });
 }
 
-/**
- * Extract the main concept from slide text for image generation
- */
 function extractConcept(slideText: string, businessDescription: string): string {
-  // Remove common filler words and extract key themes
   const text = slideText.toLowerCase();
 
-  // Simple concept extraction
   if (text.includes('grow') || text.includes('scale') || text.includes('increase')) {
     return 'growth and success';
   }
@@ -142,172 +144,108 @@ function extractConcept(slideText: string, businessDescription: string): string 
     return 'strategy and planning';
   }
 
-  // Fallback to business description theme
   return businessDescription.split(' ').slice(0, 3).join(' ');
 }
 
-/**
- * Generate a single image with timeout protection
- */
+// ---------------------------------------------------------
+// STEP 3: GENERATE SINGLE IMAGE (Imagen 3 via AI Studio)
+// ---------------------------------------------------------
+async function generateSingleImage(
+  prompt: string,
+  slideNumber: number
+): Promise<Buffer> {
+  console.log(`[IMAGE-GEN] 🎨 Generating image ${slideNumber}/10 with Imagen 3...`);
+
+  if (!API_KEY) {
+    throw new Error('❌ GOOGLE_GENERATIVE_AI_API_KEY is not set');
+  }
+
+  // 🌐 Imagen 3 endpoint via Google AI Studio (Simple API)
+  const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/imagen-3.0-generate-001:predict?key=${API_KEY}`;
+
+  const response = await fetch(endpoint, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      instances: [
+        {
+          prompt: prompt
+        }
+      ],
+      parameters: {
+        sampleCount: 1,
+        aspectRatio: '4:5', // Instagram portrait ratio
+        negativePrompt: 'text, watermark, logo, low quality, blurry, distorted, cartoon, anime',
+        seed: slideNumber,
+      }
+    }),
+  });
+
+  if (!response.ok) {
+    const errorText = await response.text();
+    console.error(`[IMAGE-GEN] ❌ API Error ${response.status}:`, errorText);
+    throw new Error(`Imagen 3 API failed: ${response.status} ${response.statusText} - ${errorText}`);
+  }
+
+  const result = await response.json();
+
+  // Extract base64 image from response
+  if (!result.predictions || !result.predictions[0] || !result.predictions[0].bytesBase64Encoded) {
+    console.error('[IMAGE-GEN] ❌ Invalid API response:', JSON.stringify(result));
+    throw new Error('Invalid response from Imagen 3 API - no image data');
+  }
+
+  const imageBase64 = result.predictions[0].bytesBase64Encoded;
+  const imageBuffer = Buffer.from(imageBase64, 'base64');
+
+  console.log(`[IMAGE-GEN] ✅ Image ${slideNumber}/10 generated (${(imageBuffer.length / 1024).toFixed(2)}KB)`);
+
+  return imageBuffer;
+}
+
+// ---------------------------------------------------------
+// STEP 4: GENERATE WITH TIMEOUT
+// ---------------------------------------------------------
 async function generateImageWithTimeout(
   prompt: string,
   slideNumber: number,
   timeoutMs: number = IMAGE_GENERATION_TIMEOUT
 ): Promise<Buffer> {
   return Promise.race([
-    generateImage(prompt, slideNumber),
+    generateSingleImage(prompt, slideNumber),
     new Promise<Buffer>((_, reject) =>
-      setTimeout(() => reject(new Error(`Timeout after ${timeoutMs}ms`)), timeoutMs)
+      setTimeout(() => reject(new Error(`⏱️ Timeout after ${timeoutMs}ms`)), timeoutMs)
     ),
   ]);
 }
 
-/**
- * Generate a single image using Google Imagen 3 via Vertex AI
- */
-export async function generateImage(
-  prompt: string,
-  slideNumber: number
-): Promise<Buffer> {
-  try {
-    console.log(`[IMAGEN] Generating image ${slideNumber}/10 with Imagen 3...`);
-
-    // Check for required environment variables
-    if (!PROJECT_ID || !process.env.GOOGLE_CREDENTIALS) {
-      throw new AIGenerationError(
-        'Vertex AI credentials not configured. Set GOOGLE_CLOUD_PROJECT and GOOGLE_CREDENTIALS in Vercel environment variables.',
-        false
-      );
-    }
-
-    // Vertex AI REST API endpoint for Imagen 3
-    const endpoint = `https://${LOCATION}-aiplatform.googleapis.com/v1/projects/${PROJECT_ID}/locations/${LOCATION}/publishers/google/models/imagen-3.0-generate-001:predict`;
-
-    // Get access token from Vertex AI SDK
-    const authHeader = await getAuthHeader();
-
-    const response = await fetch(endpoint, {
-      method: 'POST',
-      headers: {
-        'Authorization': authHeader,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        instances: [
-          {
-            prompt: prompt
-          }
-        ],
-        parameters: {
-          sampleCount: 1,
-          aspectRatio: '4:5', // Instagram portrait ratio (1080x1350)
-          negativePrompt: 'text, watermark, logo, low quality, blurry, distorted, cartoon, anime',
-          seed: slideNumber, // Consistent generation for same slide
-        }
-      }),
-    });
-
-    if (!response.ok) {
-      const errorText = await response.text();
-      console.error(`[IMAGEN] API Error ${response.status}:`, errorText);
-      throw new AIGenerationError(
-        `Imagen 3 API failed: ${response.status} ${response.statusText}`,
-        response.status === 429 || response.status >= 500
-      );
-    }
-
-    const result = await response.json();
-
-    // Extract base64 image from response
-    if (!result.predictions || !result.predictions[0] || !result.predictions[0].bytesBase64Encoded) {
-      throw new AIGenerationError('Invalid response from Imagen 3 API - no image data', false);
-    }
-
-    const imageBase64 = result.predictions[0].bytesBase64Encoded;
-    const imageBuffer = Buffer.from(imageBase64, 'base64');
-
-    console.log(`[IMAGEN] ✅ Image ${slideNumber}/10 generated (${(imageBuffer.length / 1024).toFixed(2)}KB)`);
-
-    return imageBuffer;
-  } catch (error) {
-    console.error(`[IMAGEN] Image generation failed for slide ${slideNumber}:`, error);
-
-    // Preserve AIGenerationError if already thrown
-    if (error instanceof AIGenerationError) {
-      throw error;
-    }
-
-    throw new AIGenerationError(
-      `Failed to generate image: ${error instanceof Error ? error.message : 'Unknown error'}`,
-      false
-    );
-  }
-}
-
-/**
- * Get authentication header for Vertex AI API
- */
-async function getAuthHeader(): Promise<string> {
-  try {
-    const credsJson = process.env.GOOGLE_CREDENTIALS;
-    if (!credsJson) {
-      throw new Error('GOOGLE_CREDENTIALS not set');
-    }
-
-    // Parse credentials JSON from environment variable
-    const credentials = JSON.parse(credsJson);
-
-    // For serverless, we'll use Google Auth Library with parsed credentials
-    const { GoogleAuth } = require('google-auth-library');
-    const auth = new GoogleAuth({
-      credentials: credentials,
-      scopes: ['https://www.googleapis.com/auth/cloud-platform'],
-    });
-
-    const client = await auth.getClient();
-    const accessToken = await client.getAccessToken();
-
-    if (!accessToken.token) {
-      throw new Error('Failed to obtain access token');
-    }
-
-    return `Bearer ${accessToken.token}`;
-  } catch (error) {
-    console.error('[IMAGEN] Auth failed:', error);
-    throw new AIGenerationError(
-      `Authentication failed: ${error instanceof Error ? error.message : 'Unknown error'}. ` +
-      'Ensure GOOGLE_CREDENTIALS contains valid service account JSON.',
-      false
-    );
-  }
-}
-
-/**
- * 🛡️ BULLETPROOF IMAGE GENERATION with graceful degradation
- *
- * Safeguards:
- * 1. Individual try/catch for each image (one failure doesn't kill all)
- * 2. Timeout protection (30s per image)
- * 3. Failure tracking (abort if >50% fail)
- * 4. Never throws - returns null or mixed Buffer/null array
- * 5. Returns null if generation is impossible or credentials missing
- */
+// ---------------------------------------------------------
+// STEP 5: BULLETPROOF BATCH GENERATION
+// ---------------------------------------------------------
 export async function generateCarouselImages(
   brandAnalysis: BrandAnalysis,
   slideTexts: string[],
   businessDescription: string
 ): Promise<(Buffer | null)[] | null> {
-  console.log('[IMAGEN] 🛡️ Starting bulletproof AI image generation...');
+  console.log('[IMAGE-GEN] 🛡️ Starting bulletproof AI image generation...');
 
   try {
-    // Pre-flight check: validate credentials
-    if (!PROJECT_ID || !process.env.GOOGLE_CREDENTIALS) {
-      console.warn('[IMAGEN] Missing credentials - skipping AI generation');
+    // 🔍 Pre-flight check: validate API key
+    if (!API_KEY) {
+      console.error('[IMAGE-GEN] ❌ GOOGLE_GENERATIVE_AI_API_KEY not set');
+      console.error('[IMAGE-GEN] 💡 Set this in Vercel: Project Settings → Environment Variables');
+      console.error('[IMAGE-GEN] 💡 Get key from: https://aistudio.google.com/app/apikey');
       return null;
     }
 
+    console.log('[IMAGE-GEN] ✅ API key detected:', API_KEY.substring(0, 10) + '...');
+
     // Generate all prompts
     const prompts = generateImagePrompts(brandAnalysis, slideTexts, businessDescription);
+    console.log('[IMAGE-GEN] 📝 Generated', prompts.length, 'prompts');
+
     const images: (Buffer | null)[] = [];
     let failureCount = 0;
 
@@ -317,21 +255,27 @@ export async function generateCarouselImages(
     for (let i = 0; i < prompts.length; i += batchSize) {
       const batch = prompts.slice(i, i + batchSize);
 
+      console.log(`[IMAGE-GEN] 🔄 Processing batch ${Math.floor(i / batchSize) + 1}/${Math.ceil(prompts.length / batchSize)}...`);
+
       // 🛡️ Process batch with individual error handling
       const batchResults = await Promise.all(
         batch.map(async (prompt, index) => {
           const slideNum = i + index + 1;
           try {
-            // Try to generate with timeout
             const image = await generateImageWithTimeout(prompt, slideNum);
             return image;
           } catch (error) {
             failureCount++;
-            console.warn(`[IMAGEN] ⚠️ Image ${slideNum}/10 failed:`, error instanceof Error ? error.message : 'Unknown');
+            const errorMsg = error instanceof Error ? error.message : 'Unknown error';
+            console.warn(`[IMAGE-GEN] ⚠️ Image ${slideNum}/10 failed:`, errorMsg);
 
-            // 🛡️ EARLY ABORT: If >50% failed, stop trying
+            // 🛑 EARLY ABORT: If >50% failed, stop trying
             if (failureCount > MAX_FAILURES_ALLOWED) {
-              console.error(`[IMAGEN] ❌ Too many failures (${failureCount}/${slideNum}) - aborting AI generation`);
+              console.error(`[IMAGE-GEN] ❌ Too many failures (${failureCount}/${slideNum})`);
+              console.error('[IMAGE-GEN] 💡 Possible issues:');
+              console.error('[IMAGE-GEN]    1. API key lacks Imagen 3 access');
+              console.error('[IMAGE-GEN]    2. Quota exceeded');
+              console.error('[IMAGE-GEN]    3. Imagen 3 not available in your region');
               throw new Error('Too many image generation failures');
             }
 
@@ -353,22 +297,24 @@ export async function generateCarouselImages(
     const successRate = (successCount / images.length) * 100;
 
     if (successCount === 0) {
-      console.error('[IMAGEN] ❌ All images failed to generate');
+      console.error('[IMAGE-GEN] ❌ All images failed to generate');
+      console.error('[IMAGE-GEN] 💡 Check the errors above for details');
       return null;
     }
 
     if (successCount < images.length) {
-      console.warn(`[IMAGEN] ⚠️ Partial success: ${successCount}/10 images generated (${successRate.toFixed(0)}%)`);
-      console.warn('[IMAGEN] Some slides will use uploaded photos as fallback');
+      console.warn(`[IMAGE-GEN] ⚠️ Partial success: ${successCount}/10 images (${successRate.toFixed(0)}%)`);
+      console.warn('[IMAGE-GEN] 🔄 Will use uploaded photos as fallback for failed slides');
     } else {
-      console.log('[IMAGEN] ✅ All 10 images generated successfully!');
+      console.log('[IMAGE-GEN] ✅ All 10 images generated successfully! 🎉');
     }
 
-    // Return images (mix of AI-generated and null for fallback)
     return images;
 
   } catch (error) {
-    console.error('[IMAGEN] ❌ Image generation aborted:', error);
+    const errorMsg = error instanceof Error ? error.message : 'Unknown error';
+    console.error('[IMAGE-GEN] ❌ Image generation aborted:', errorMsg);
+    console.error('[IMAGE-GEN] 🔄 Falling back to uploaded images');
     return null;
   }
 }
