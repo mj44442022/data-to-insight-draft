@@ -183,6 +183,22 @@ async function generateSingleImage(
     // Parse service account credentials
     const credentials = JSON.parse(VERTEX_CREDENTIALS);
 
+    // 🔧 FIX: Normalize private key format (fix common Vercel paste issues)
+    if (credentials.private_key) {
+      // Replace literal \n with actual newlines if they got escaped
+      credentials.private_key = credentials.private_key.replace(/\\n/g, '\n');
+
+      // Ensure proper BEGIN/END format
+      if (!credentials.private_key.includes('-----BEGIN PRIVATE KEY-----')) {
+        throw new Error('Private key missing BEGIN header - check your GOOGLE_CREDENTIALS format');
+      }
+      if (!credentials.private_key.includes('-----END PRIVATE KEY-----')) {
+        throw new Error('Private key missing END footer - check your GOOGLE_CREDENTIALS format');
+      }
+
+      console.log(`[WORKER] 🔑 Private key format validated`);
+    }
+
     // Get OAuth2 access token
     const { GoogleAuth } = require('google-auth-library');
     const auth = new GoogleAuth({
