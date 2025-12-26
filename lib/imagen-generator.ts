@@ -196,6 +196,11 @@ async function generateSingleImage(
     // Replace literal \n with actual newlines if they got escaped
     credentials.private_key = credentials.private_key.replace(/\\n/g, '\n');
 
+    // 🔧 FIX: Add missing spaces in BEGIN/END markers (common copy/paste error)
+    credentials.private_key = credentials.private_key
+      .replace('-----BEGINPRIVATEKEY-----', '-----BEGIN PRIVATE KEY-----')
+      .replace('-----ENDPRIVATEKEY-----', '-----END PRIVATE KEY-----');
+
     // Ensure proper BEGIN/END format
     if (!credentials.private_key.includes('-----BEGIN PRIVATE KEY-----')) {
       throw new Error(
@@ -208,7 +213,7 @@ async function generateSingleImage(
       throw new Error('Private key missing END footer - check your GOOGLE_CREDENTIALS format');
     }
 
-    console.log(`[WORKER] 🔑 Private key format validated`);
+    console.log(`[WORKER] 🔑 Private key format validated with proper spacing`);
 
     // Get OAuth2 access token
     const { GoogleAuth } = require('google-auth-library');
