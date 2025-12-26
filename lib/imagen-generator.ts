@@ -250,7 +250,7 @@ async function generateSingleImage(
           sampleCount: 1,
           aspectRatio: '4:5', // Instagram portrait (1080x1350)
           negativePrompt: 'text, watermark, logo, low quality, blurry, distorted, cartoon, anime',
-          seed: slideNumber,
+          // Note: seed parameter removed - not supported with watermarks enabled
         }
       }),
     });
