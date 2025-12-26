@@ -76,10 +76,24 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    if (!contentPillar || !['Heard', 'Helpful', 'Humor', 'Happenings', 'Mixed'].includes(contentPillar)) {
-      console.error('[GENERATE] Invalid content pillar:', contentPillar);
+    const validPillars = [
+      'Pillar 1: Vulnerability Architect',
+      'Pillar 2: Polarizing Truth-Teller',
+      'Pillar 3: AI-Powered Clarity Machine',
+      'Pillar 4: Research-Driven Experimenter',
+      'Pillar 5: Integrated Expert System'
+    ];
+
+    if (!contentPillar || !validPillars.includes(contentPillar)) {
+      console.error('[GENERATE] ❌ VALIDATION ERROR: Invalid content pillar');
+      console.error('[GENERATE] 📝 Received:', contentPillar);
+      console.error('[GENERATE] ✅ Valid options:', validPillars.join(', '));
       return NextResponse.json(
-        { error: 'Valid content pillar is required', details: `Received: ${contentPillar}` },
+        {
+          error: 'Invalid ARCS content pillar',
+          received: contentPillar,
+          validOptions: validPillars
+        },
         { status: 400 }
       );
     }
