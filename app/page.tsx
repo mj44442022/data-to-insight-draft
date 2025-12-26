@@ -61,7 +61,7 @@ export default function Home() {
           </Link>
 
           <p className="text-cream/60 mt-6 text-sm tracking-wider">
-            No credit card • Unlimited generations • Shannon's 4 H's Framework
+            No credit card • Unlimited generations • ARCS Framework + 10 Expert Methodologies
           </p>
         </div>
       </section>
@@ -112,7 +112,7 @@ export default function Home() {
               {
                 number: '02',
                 title: 'AI Magic',
-                desc: 'Google Gemini analyzes your photos using Shannon\'s 4 H\'s Framework and creates scroll-stopping content with REP hooks.',
+                desc: 'Google Gemini analyzes your photos using the ARCS Framework (Audiencia, Resultado, Consecuencias, Auto-Optimización) and creates scroll-stopping content.',
               },
               {
                 number: '03',
@@ -168,7 +168,7 @@ export default function Home() {
               {
                 icon: '🎨',
                 title: '10-Slide Carousel',
-                desc: 'Professional 1080x1080 PNG slides with REP hooks and Shannon\'s framework. Download as ZIP.',
+                desc: 'Professional 1080x1080 PNG slides with ARCS methodology and expert-backed storytelling. Download as ZIP.',
               },
               {
                 icon: '🎬',
@@ -236,7 +236,7 @@ export default function Home() {
         <div className="max-w-7xl mx-auto text-center text-cream/60">
           <p className="tracking-wide">Built for founders who want to automate content creation</p>
           <p className="mt-3 text-sm text-cream/50">
-            Powered by Google Gemini 1.5 Flash • Shannon's 4 H's Framework
+            Powered by Google Gemini 2.5 Flash • ARCS Framework + 10 Expert Methodologies
           </p>
         </div>
       </footer>
