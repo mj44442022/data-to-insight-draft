@@ -282,7 +282,15 @@ async function generateSingleImage(
     }
 
     const imageBase64 = result.predictions[0].bytesBase64Encoded;
-    const imageBuffer = Buffer.from(imageBase64, 'base64');
+    let imageBuffer = Buffer.from(imageBase64, 'base64');
+
+    // 🔍 DIAGNOSTIC: Check image format (magic bytes)
+    const magicBytes = imageBuffer.slice(0, 4).toString('hex');
+    console.log(`[WORKER] 🔍 Image format signature: ${magicBytes}`);
+
+    // PNG magic: 89504e47
+    // JPEG magic: ffd8ffe0 or ffd8ffe1
+    // WebP magic: 52494646 (starts with RIFF)
 
     console.log(`[WORKER] ✅ Image ${slideNumber}/10 generated (${(imageBuffer.length / 1024).toFixed(2)}KB)`);
 

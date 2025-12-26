@@ -59,7 +59,12 @@ export async function createCarouselSlide(
   try {
     console.log(`[IMAGE-PROCESSOR] Creating carousel slide ${slideNumber}...`);
 
-    const imageBase64 = imageBuffer.toString('base64');
+    // 🔧 FIX: Normalize image format to JPEG (handles PNG/WebP from Imagen 3)
+    console.log(`[IMAGE-PROCESSOR] 🔄 Normalizing image format to JPEG...`);
+    const normalizedBuffer = await normalizeImage(imageBuffer);
+    console.log(`[IMAGE-PROCESSOR] ✅ Image normalized (${normalizedBuffer.length} bytes)`);
+
+    const imageBase64 = normalizedBuffer.toString('base64');
     const imageDataUrl = `data:image/jpeg;base64,${imageBase64}`;
     const fontData = getRobotoFont();
 
@@ -262,14 +267,19 @@ export async function createReelFrame(
   try {
     console.log('[IMAGE-PROCESSOR] Creating reel frame...');
 
-    // Step 1: Convert image to base64 data URL
-    const imageBase64 = imageBuffer.toString('base64');
+    // Step 1: Normalize image format to JPEG (handles PNG/WebP from Imagen 3)
+    console.log('[IMAGE-PROCESSOR] 🔄 Normalizing image format to JPEG...');
+    const normalizedBuffer = await normalizeImage(imageBuffer);
+    console.log('[IMAGE-PROCESSOR] ✅ Image normalized');
+
+    // Step 2: Convert image to base64 data URL
+    const imageBase64 = normalizedBuffer.toString('base64');
     const imageDataUrl = `data:image/jpeg;base64,${imageBase64}`;
 
-    // Step 2: Load font from bundle
+    // Step 3: Load font from bundle
     const fontData = getRobotoFont();
 
-    // Step 3: Word wrap text (max 35 chars per line for vertical format)
+    // Step 4: Word wrap text (max 35 chars per line for vertical format)
     const words = text.split(' ');
     const lines: string[] = [];
     let currentLine = '';
@@ -286,7 +296,7 @@ export async function createReelFrame(
     }
     if (currentLine) lines.push(currentLine);
 
-    // Step 4: Create React element for Satori
+    // Step 5: Create React element for Satori
     const element: ReactElement = {
       type: 'div',
       key: null,
@@ -355,7 +365,7 @@ export async function createReelFrame(
       },
     } as ReactElement;
 
-    // Step 5: Generate SVG using Satori
+    // Step 6: Generate SVG using Satori
     const svg = await satori(element, {
       width: 1080,
       height: 1920,
@@ -369,7 +379,7 @@ export async function createReelFrame(
       ],
     });
 
-    // Step 6: Convert SVG to PNG using Sharp (built-in SVG support)
+    // Step 7: Convert SVG to PNG using Sharp (built-in SVG support)
     const pngBuffer = await sharp(Buffer.from(svg))
       .png()
       .toBuffer();
