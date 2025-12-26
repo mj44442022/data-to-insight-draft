@@ -334,9 +334,15 @@ export async function generateCarouselImages(
     console.log('[WORKER] 🏗️ Project:', VERTEX_PROJECT_ID);
     console.log('[WORKER] 🌍 Location:', VERTEX_LOCATION);
 
-    // Generate all prompts
-    const prompts = generateImagePrompts(brandAnalysis, slideTexts, businessDescription);
-    console.log('[WORKER] 📝 Generated', prompts.length, 'prompts');
+    // ⚡ QUOTA OPTIMIZATION: Only generate 3 AI images (stay within free tier)
+    // Remaining slides will use uploaded photos as fallback
+    const MAX_AI_IMAGES = 3;
+    const aiSlideTexts = slideTexts.slice(0, MAX_AI_IMAGES);
+
+    // Generate prompts for first 3 slides only
+    const prompts = generateImagePrompts(brandAnalysis, aiSlideTexts, businessDescription);
+    console.log('[WORKER] 📝 Generated', prompts.length, 'AI image prompts (staying within quota)');
+    console.log('[WORKER] 💡 Remaining', slideTexts.length - prompts.length, 'slides will use uploaded photos');
 
     const images: (Buffer | null)[] = [];
     let failureCount = 0;
@@ -396,16 +402,18 @@ export async function generateCarouselImages(
     const successRate = (successCount / images.length) * 100;
 
     if (successCount === 0) {
-      console.error('[WORKER] ❌ All images failed to generate');
+      console.error('[WORKER] ❌ All AI images failed to generate');
       return null;
     }
 
-    if (successCount < images.length) {
-      console.warn(`[WORKER] ⚠️ Partial success: ${successCount}/10 images (${successRate.toFixed(0)}%)`);
-      console.warn('[WORKER] 🔄 Some slides will use uploaded photos as fallback');
-    } else {
-      console.log('[WORKER] ✅ All 10 images generated successfully! 🎉');
+    // Pad array with nulls to match total slide count (10 slides)
+    const totalSlides = slideTexts.length;
+    while (images.length < totalSlides) {
+      images.push(null);
     }
+
+    console.log(`[WORKER] ✅ Generated ${successCount} AI images successfully`);
+    console.log(`[WORKER] 📊 Final mix: ${successCount} AI + ${totalSlides - successCount} uploaded photos`);
 
     return images;
 
