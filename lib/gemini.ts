@@ -111,7 +111,7 @@ async function getValidatedModel(): Promise<string> {
 
 export interface StrategyLogic {
   targetAvatar: string;
-  fourHBucket: string;
+  arcsPillar: string;
   purpleCowAngle: string;
   seoKeywords: string[];
 }
@@ -163,45 +163,106 @@ export async function generateContentPlan(
   );
   const model = genAI.getGenerativeModel({ model: modelName });
 
-  // Shannon's 4 H's Framework guidance based on pillar
+  // ARCS Framework guidance based on content pillar
   const frameworkGuidance = {
-    Heard: `Focus on HEARD pillar - Make the audience feel seen and validated:
-- Create inspirational content that shares your brand message
-- Use POV posts and pep talks
-- Create belonging and emotional connection
-- Make it highly shareable and savable
-- People should say "I feel seen" when they watch this`,
+    'Pillar 1: Vulnerability Architect': `Use the VULNERABILITY ARCHITECT approach (Matthew Dicks + Shannon McKinstrie):
+ARCS Focus: R (Revelation) + A (Audience connection through relatability)
 
-    Helpful: `Focus on HELPFUL pillar - Give quick wins and bite-sized tips:
-- Mini-tutorials and practical how-tos
-- "What I'm buying" content
-- Instant gratification tips (NOT 10-step guides)
-- Keep it actionable and snackable
-- Deliver value in seconds, not minutes`,
+Core Strategy:
+- Find the five-second moment of transformation in ordinary experiences
+- Show the messy middle, not the highlight reel
+- Make them feel SEEN through your experience
+- One five-second transformation - cut everything else
 
-    Humor: `Focus on HUMOR pillar - Relatable situations that make people tag friends:
-- Content that makes people say "I feel seen"
-- Pair relatable scenarios with the vibe (don't need actual jokes)
-- Tap into shared experiences
-- Make it tag-worthy and shareable
-- Focus on relatability over comedy`,
+Content Structure:
+- Hook: Start in the middle of emotion/action (relatable struggle)
+- Body: Concrete sensory details of the messy experience
+- Pivot: The five-second transformation moment
+- Revelation: What changed (the "So what?")
+- CTA: Invite connection ("Have you felt this?")
 
-    Happenings: `Focus on HAPPENINGS pillar - Behind-the-scenes content:
-- Day-in-the-life footage
-- Team highlights and client stories
-- Personal life moments
-- What you're eating, drinking, working on
-- Show the human side of your brand`,
+Key Principle: Show, don't tell. The revelation lives in that transformation moment.`,
 
-    Mixed: `Use a BALANCED approach across all 4 H's:
-- Mix inspirational validation (Heard)
-- Quick actionable tips (Helpful)
-- Relatable moments (Humor)
-- Behind-the-scenes authenticity (Happenings)
-- Create variety that keeps audience engaged`
+    'Pillar 2: Polarizing Truth-Teller': `Use the POLARIZING TRUTH-TELLER approach (Maggie Sellers Reum + Seth Godin + Steven Bartlett):
+ARCS Focus: C (Consequences) + A (Audience selection through polarization)
+
+Core Strategy:
+- Be "not for everyone" on purpose
+- Take a clear, researched stance
+- Sell the transformation/lifestyle, not features
+- Make the "So what?" impossible to miss
+- Truth over cleverness
+
+Content Structure:
+- Hook: Controversial/polarizing statement
+- Context: Why most people get this wrong
+- Truth: Your researched position (backed by data/story)
+- Consequences: What's at stake if they don't listen
+- CTA: "Agree or disagree?"
+
+Key Principle: Serve your audience by being honest, not by being liked. Make inaction uncomfortable.`,
+
+    'Pillar 3: AI-Powered Clarity Machine': `Use the AI-POWERED CLARITY MACHINE approach (Lucy Guo + Shane Parrish + June Casagrande):
+ARCS Focus: S (Self-Optimization through AI) + R (One clear revelation)
+
+Core Strategy:
+- One idea per post (more = noise)
+- Mental models for instant simplicity
+- Serve the reader first - what do THEY need to know?
+- Clarity serves. Cleverness confuses.
+
+Content Structure:
+- Hook: Single clear promise (what they'll learn)
+- Framework: Mental model/system visual (make it scannable)
+- Application: One specific use case (concrete example)
+- Result: Quick win they can try today
+- CTA: "Try this and tell me what happens"
+
+Key Principle: If someone reads your reel and still doesn't know what to do, you failed the clarity test.`,
+
+    'Pillar 4: Research-Driven Experimenter': `Use the RESEARCH-DRIVEN EXPERIMENTER approach (Steven Bartlett + Tim Ferriss + Michael Lewis):
+ARCS Focus: S (Self-Optimization through experiments) + C (Data-driven consequences)
+
+Core Strategy:
+- Test ideas as thumbnails BEFORE creating
+- Run controlled experiments (change one variable)
+- Zoom into the one revealing detail
+- Document everything, iterate always
+- Become a story scientist
+
+Content Structure:
+- Hook: "I tested X and here's what shocked me..."
+- Setup: The experiment parameters (what you tested, why)
+- Detail: The one unexpected observation (the reveal)
+- Insight: What this means for your audience
+- CTA: "What should I test next?"
+
+Key Principle: You're not creating content, you're running experiments. The revelation comes from what you discover.`,
+
+    'Pillar 5: Integrated Expert System': `Use the INTEGRATED EXPERT SYSTEM approach (All 10 Experts + ARCS Combined):
+ARCS Focus: All elements - A, R, C, S working together
+
+Core Strategy:
+- Apply ARCS as the foundation (Audiencia, Resultado, Consecuencias, Auto-Optimización)
+- Research first (Bartlett/Ferriss) - validate before creating
+- Find the five-second transformation (Dicks/Lewis)
+- Be polarizing with purpose (Godin/Sellers Reum)
+- Engineer clarity (Casagrande/Parrish)
+- Automate the 80% (Guo)
+- Answer "So what?" explicitly
+- Run experiments and iterate
+
+Content Structure:
+- Hook: REP formula (Relatable, Emotional, Promise)
+- Body: Combine story + data + transformation
+- Stakes: Make consequences crystal clear
+- Actionable: One thing they can do now
+- CTA: Invite testing/feedback
+
+Key Principle: Every reel is an experiment. Every reaction is data. Accumulate the reps.`
   };
 
-  const pillarGuidance = frameworkGuidance[contentPillar as keyof typeof frameworkGuidance] || frameworkGuidance.Mixed;
+  const pillarGuidance = frameworkGuidance[contentPillar as keyof typeof frameworkGuidance] || frameworkGuidance['Pillar 5: Integrated Expert System'];
 
   const prompt = `# ROLE DEFINITION
 You are an Elite B2B Growth Strategist & Copywriter (Ex-McKinsey, Ex-YCombinator). Your expertise is creating high-conversion Instagram content for professional audiences.
@@ -230,7 +291,14 @@ Analyze these ${images.length} business photos and create professional Instagram
 Business: ${description}
 Key Messages: ${keyMessages}
 Tone: ${tone}
-Content Pillar: ${contentPillar}
+ARCS Content Pillar: ${contentPillar}
+
+# ARCS FRAMEWORK (Your Foundation):
+Every piece of content MUST flow through this lens:
+- A (Audiencia): Who's it for? Adapt the message to your listener.
+- R (Resultado): What's the ONE transformational insight that shifts their view?
+- C (Consecuencias): Answer "So what?" - what are the benefits or losses at stake?
+- S (Auto-Optimización): This is testable, improvable, iterative.
 
 ${pillarGuidance}
 
@@ -240,8 +308,8 @@ Generate:
 
 1. **STRATEGY LOGIC:**
    - Target Avatar: Who is this for? (Be specific: "Series A founders in SaaS", not "entrepreneurs")
-   - The 4-H Bucket: ${contentPillar}
-   - Value Proposition: What concrete value does this provide?
+   - ARCS Pillar: ${contentPillar}
+   - Value Proposition: What concrete value does this provide? (Answer the ARCS "So what?")
    - SEO Keywords: 3-5 specific industry keywords
 
 2. **Carousel (10 slides):**
@@ -286,7 +354,7 @@ Return ONLY valid JSON in this exact format:
 {
   "strategyLogic": {
     "targetAvatar": "Series A SaaS founders scaling from $1M to $10M ARR",
-    "fourHBucket": "${contentPillar}",
+    "arcsPillar": "${contentPillar}",
     "purpleCowAngle": "Data-backed growth strategies enterprise competitors ignore",
     "seoKeywords": ["B2B growth", "SaaS scaling", "revenue optimization"]
   },
