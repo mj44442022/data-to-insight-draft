@@ -282,22 +282,57 @@ async function generateSingleImage(
     }
 
     const imageBase64 = result.predictions[0].bytesBase64Encoded;
+
+    // 🔍 VALIDATION: Check base64 data exists and is valid
+    if (!imageBase64 || typeof imageBase64 !== 'string') {
+      throw new Error(`Invalid base64 data received from Vertex AI. Type: ${typeof imageBase64}`);
+    }
+
     let imageBuffer = Buffer.from(imageBase64, 'base64');
 
-    // 🔍 DIAGNOSTIC: Check image format (magic bytes)
+    // 🔍 VALIDATION: Check buffer size
+    if (imageBuffer.length === 0) {
+      throw new Error('Received empty image buffer from Vertex AI');
+    }
+
+    if (imageBuffer.length < 100) {
+      console.warn(`[WORKER] ⚠️ Suspiciously small image buffer (${imageBuffer.length} bytes)`);
+    }
+
+    // 🔍 DIAGNOSTIC: Detect image format by magic bytes
     const magicBytes = imageBuffer.slice(0, 4).toString('hex');
-    console.log(`[WORKER] 🔍 Image format signature: ${magicBytes}`);
+    let imageFormat = 'UNKNOWN';
 
-    // PNG magic: 89504e47
-    // JPEG magic: ffd8ffe0 or ffd8ffe1
-    // WebP magic: 52494646 (starts with RIFF)
+    if (magicBytes === '89504e47') {
+      imageFormat = 'PNG';
+    } else if (magicBytes.startsWith('ffd8ff')) {
+      imageFormat = 'JPEG';
+    } else if (magicBytes === '52494646') {
+      imageFormat = 'WebP (RIFF)';
+    }
 
-    console.log(`[WORKER] ✅ Image ${slideNumber}/10 generated (${(imageBuffer.length / 1024).toFixed(2)}KB)`);
+    console.log(`[WORKER] 🔍 Image format detected: ${imageFormat} (magic: ${magicBytes})`);
+    console.log(`[WORKER] ✅ Image ${slideNumber}/10 generated (${(imageBuffer.length / 1024).toFixed(2)}KB, ${imageFormat})`);
 
     return imageBuffer;
 
   } catch (error) {
-    console.error(`[WORKER] 💥 Generation error:`, error);
+    console.error(`[WORKER] 💥 Generation error for slide ${slideNumber}:`, error);
+
+    // Enhanced error logging for troubleshooting
+    if (error instanceof Error) {
+      console.error(`[WORKER] 📝 Error details:`, {
+        name: error.name,
+        message: error.message,
+        stack: error.stack?.split('\n').slice(0, 3).join('\n'),
+      });
+    }
+
+    // Log API-specific errors
+    if (error && typeof error === 'object' && 'code' in error) {
+      console.error(`[WORKER] 🔴 API Error Code:`, (error as any).code);
+    }
+
     throw error;
   }
 }

@@ -59,10 +59,15 @@ export async function createCarouselSlide(
   try {
     console.log(`[IMAGE-PROCESSOR] Creating carousel slide ${slideNumber}...`);
 
+    // 🔍 VALIDATION: Check input buffer
+    if (!imageBuffer || imageBuffer.length === 0) {
+      throw new Error(`Invalid image buffer for slide ${slideNumber} (empty or null)`);
+    }
+
+    console.log(`[IMAGE-PROCESSOR] 📥 Input buffer: ${(imageBuffer.length / 1024).toFixed(2)}KB`);
+
     // 🔧 FIX: Normalize image format to JPEG (handles PNG/WebP from Imagen 3)
-    console.log(`[IMAGE-PROCESSOR] 🔄 Normalizing image format to JPEG...`);
     const normalizedBuffer = await normalizeImage(imageBuffer);
-    console.log(`[IMAGE-PROCESSOR] ✅ Image normalized (${normalizedBuffer.length} bytes)`);
 
     const imageBase64 = normalizedBuffer.toString('base64');
     const imageDataUrl = `data:image/jpeg;base64,${imageBase64}`;
@@ -241,14 +246,31 @@ export async function createCarouselSlide(
     console.log(`[IMAGE-PROCESSOR] ✅ Slide ${slideNumber} created (${pngBuffer.length} bytes)`);
     return pngBuffer;
   } catch (error) {
-    console.error(`[IMAGE-PROCESSOR] Failed to create slide ${slideNumber}:`, error);
+    console.error(`[IMAGE-PROCESSOR] ❌ Failed to create slide ${slideNumber}:`, error);
 
+    // Enhanced error logging for troubleshooting
+    if (error instanceof Error) {
+      console.error(`[IMAGE-PROCESSOR] 📝 Error details:`, {
+        name: error.name,
+        message: error.message,
+        slideNumber,
+        textLength: text?.length || 0,
+        bufferSize: imageBuffer?.length || 0,
+        stack: error.stack?.split('\n').slice(0, 3).join('\n'),
+      });
+    }
+
+    // Preserve specific error types
     if (error instanceof FontLoadError) {
       throw error;
     }
 
+    if (error instanceof ImageProcessingError) {
+      throw error;
+    }
+
     throw new ImageProcessingError(
-      `Carousel slide generation failed: ${error instanceof Error ? error.message : 'Unknown error'}`,
+      `Carousel slide ${slideNumber} generation failed: ${error instanceof Error ? error.message : 'Unknown error'}`,
       slideNumber
     );
   }
@@ -404,9 +426,44 @@ export async function createReelFrame(
 /**
  * Normalize image for consistent processing
  * Converts to JPEG with quality optimization
+ * Handles PNG, WebP, JPEG formats from Imagen 3
  */
 export async function normalizeImage(imageBuffer: Buffer): Promise<Buffer> {
-  return sharp(imageBuffer)
-    .jpeg({ quality: 90 })
-    .toBuffer();
+  try {
+    // 🔍 VALIDATION: Check buffer is valid
+    if (!imageBuffer || imageBuffer.length === 0) {
+      throw new Error('Cannot normalize empty image buffer');
+    }
+
+    // Detect format for logging
+    const magicBytes = imageBuffer.slice(0, 4).toString('hex');
+    let detectedFormat = 'UNKNOWN';
+    if (magicBytes === '89504e47') detectedFormat = 'PNG';
+    else if (magicBytes.startsWith('ffd8ff')) detectedFormat = 'JPEG';
+    else if (magicBytes === '52494646') detectedFormat = 'WebP';
+
+    console.log(`[IMAGE-PROCESSOR] 🔄 Normalizing ${detectedFormat} image (${(imageBuffer.length / 1024).toFixed(2)}KB) to JPEG...`);
+
+    const normalizedBuffer = await sharp(imageBuffer)
+      .jpeg({ quality: 90 })
+      .toBuffer();
+
+    console.log(`[IMAGE-PROCESSOR] ✅ Normalized to JPEG (${(normalizedBuffer.length / 1024).toFixed(2)}KB)`);
+
+    return normalizedBuffer;
+  } catch (error) {
+    console.error('[IMAGE-PROCESSOR] ❌ Image normalization failed:', error);
+
+    if (error instanceof Error) {
+      console.error('[IMAGE-PROCESSOR] 📝 Error details:', {
+        name: error.name,
+        message: error.message,
+        bufferSize: imageBuffer?.length || 0,
+      });
+    }
+
+    throw new ImageProcessingError(
+      `Failed to normalize image: ${error instanceof Error ? error.message : 'Unknown error'}`
+    );
+  }
 }
