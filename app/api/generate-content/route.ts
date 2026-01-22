@@ -127,17 +127,17 @@ REQUISITOS:
 - Texto corto y punchy
 - Cada segmento debe ser visual
 
-FORMATO JSON:
-Devuelve un array JSON con esta estructura:
+CRÍTICO: Tu respuesta debe ser ÚNICAMENTE un array JSON válido. Sin introducción, sin explicación, sin texto adicional. Solo el JSON.
+
+FORMATO EXACTO:
 [
   {"timestamp": "[0-3s]", "text": "Hook impactante aquí"},
   {"timestamp": "[3-10s]", "text": "Value punto 1"},
-  {"timestamp": "[10-15s]", "text": "Value punto 2"},
-  {"timestamp": "[15-25s]", "text": "Value punto 3"},
-  {"timestamp": "[25-30s]", "text": "CTA fuerte"}
+  {"timestamp": "[10-20s]", "text": "Value punto 2"},
+  {"timestamp": "[20-30s]", "text": "CTA fuerte"}
 ]
 
-DEVUELVE SOLO EL JSON, sin texto adicional.`;
+Empieza tu respuesta con [ y termina con ]`;
 
     case 'stories':
       return `Eres un experto en Instagram Stories. Convierte este artículo en 3-5 SLIDES para Stories.
@@ -152,15 +152,16 @@ REQUISITOS:
 - Sugerencia de visual por slide
 - Estructura: Hook → Value → CTA
 
-FORMATO JSON:
-Devuelve un array JSON con esta estructura:
+CRÍTICO: Tu respuesta debe ser ÚNICAMENTE un array JSON válido. Sin introducción, sin explicación, sin texto adicional. Solo el JSON.
+
+FORMATO EXACTO:
 [
-  {"text": "Texto del slide 1", "visual": "Sugerencia de visual (ej: emoji grande, gráfico)"},
-  {"text": "Texto del slide 2", "visual": "Sugerencia de visual"},
-  ...
+  {"text": "Texto del slide 1 (máx 30 palabras)", "visual": "📱 Emoji grande o descripción visual"},
+  {"text": "Texto del slide 2 (máx 30 palabras)", "visual": "✨ Emoji grande o descripción visual"},
+  {"text": "Texto del slide 3 (máx 30 palabras)", "visual": "🎯 Emoji grande o descripción visual"}
 ]
 
-DEVUELVE SOLO EL JSON, sin texto adicional.`;
+Empieza tu respuesta con [ y termina con ]`;
 
     case 'whatsapp':
       return `Eres un experto en comunicación por WhatsApp. Convierte este artículo en un MENSAJE para WhatsApp.
@@ -208,9 +209,69 @@ function parsePlatformResponse(platform: string, text: string): any {
             versions: [JSON.stringify(parsed)],
           };
         }
+      } else {
+        // No JSON found, create fallback structure
+        console.warn(`[GENERATE-CONTENT] No JSON found in ${platform} response, creating fallback`);
+
+        if (platform === 'reel') {
+          // Create basic reel structure from text
+          const fallbackScript = [
+            { timestamp: '[0-5s]', text: text.slice(0, 100) },
+            { timestamp: '[5-15s]', text: text.slice(100, 250) || 'Value proposition' },
+            { timestamp: '[15-30s]', text: text.slice(250, 400) || 'Call to action' },
+          ];
+          return {
+            text: JSON.stringify(fallbackScript),
+            script: fallbackScript,
+            currentVersion: 1,
+            versions: [JSON.stringify(fallbackScript)],
+          };
+        } else if (platform === 'stories') {
+          // Create basic stories structure from text
+          const words = text.split(' ');
+          const fallbackSlides = [
+            { text: words.slice(0, 15).join(' '), visual: '📱 Intro visual' },
+            { text: words.slice(15, 30).join(' '), visual: '✨ Value visual' },
+            { text: words.slice(30, 45).join(' '), visual: '🎯 CTA visual' },
+          ];
+          return {
+            text: JSON.stringify(fallbackSlides),
+            slides: fallbackSlides,
+            currentVersion: 1,
+            versions: [JSON.stringify(fallbackSlides)],
+          };
+        }
       }
     } catch (e) {
       console.error(`[GENERATE-CONTENT] Failed to parse ${platform} JSON:`, e);
+      console.error(`[GENERATE-CONTENT] Raw text was:`, text.slice(0, 200));
+
+      // Return fallback structure
+      if (platform === 'reel') {
+        const fallbackScript = [
+          { timestamp: '[0-10s]', text: 'Hook: ' + text.slice(0, 50) },
+          { timestamp: '[10-20s]', text: 'Value: ' + text.slice(50, 100) },
+          { timestamp: '[20-30s]', text: 'CTA: Check bio for more' },
+        ];
+        return {
+          text: JSON.stringify(fallbackScript),
+          script: fallbackScript,
+          currentVersion: 1,
+          versions: [JSON.stringify(fallbackScript)],
+        };
+      } else if (platform === 'stories') {
+        const fallbackSlides = [
+          { text: text.slice(0, 50), visual: '📱 Visual 1' },
+          { text: text.slice(50, 100), visual: '✨ Visual 2' },
+          { text: text.slice(100, 150), visual: '🎯 Visual 3' },
+        ];
+        return {
+          text: JSON.stringify(fallbackSlides),
+          slides: fallbackSlides,
+          currentVersion: 1,
+          versions: [JSON.stringify(fallbackSlides)],
+        };
+      }
     }
   }
 

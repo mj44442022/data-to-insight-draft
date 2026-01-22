@@ -44,7 +44,7 @@ export default function InputSection({
         value={article}
         onChange={(e) => onArticleChange(e.target.value)}
         placeholder="Pega tu artículo aquí (funciona con ideas sueltas también)"
-        className="w-full min-h-[200px] p-4 border-2 border-gray-200 rounded-lg resize-none focus:border-[#2A9D8F] focus:outline-none transition-colors text-[#264653] placeholder-gray-400"
+        className="w-full min-h-[200px] p-4 border-2 border-gray-200 rounded-lg resize-none focus:border-[#2A9D8F] focus:ring-2 focus:ring-[#2A9D8F] focus:ring-opacity-20 focus:outline-none transition-all duration-200 text-[#264653] placeholder-gray-400"
         style={{ height: 'auto' }}
         onInput={(e) => {
           const target = e.target as HTMLTextAreaElement;
@@ -72,7 +72,7 @@ export default function InputSection({
             value={additionalContext}
             onChange={(e) => onContextChange(e.target.value)}
             placeholder="Ej: enfócate en el ángulo de productividad, usa un tono personal"
-            className="w-full mt-2 p-3 border-2 border-gray-200 rounded-lg resize-none focus:border-[#2A9D8F] focus:outline-none transition-colors text-[#264653] placeholder-gray-400"
+            className="w-full mt-2 p-3 border-2 border-gray-200 rounded-lg resize-none focus:border-[#2A9D8F] focus:ring-2 focus:ring-[#2A9D8F] focus:ring-opacity-20 focus:outline-none transition-all duration-200 text-[#264653] placeholder-gray-400"
             rows={3}
           />
         )}
@@ -85,7 +85,7 @@ export default function InputSection({
         className={`mt-6 w-full py-4 px-6 rounded-lg font-semibold text-white transition-all duration-200 ${
           !article.trim() || isGenerating
             ? 'bg-gray-300 cursor-not-allowed'
-            : 'bg-[#2A9D8F] hover:bg-[#238276] shadow-md hover:shadow-lg'
+            : 'bg-[#2A9D8F] hover:bg-[#238276] hover:scale-[1.02] shadow-md hover:shadow-xl'
         }`}
       >
         {isGenerating ? (

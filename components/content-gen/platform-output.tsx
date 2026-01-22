@@ -54,17 +54,17 @@ export default function PlatformOutput({
           <div className="flex items-center space-x-2">
             <button
               onClick={onAdjustClick}
-              className="flex items-center space-x-2 px-4 py-2 text-sm font-medium text-[#2A9D8F] hover:bg-[#2A9D8F] hover:bg-opacity-10 rounded-lg transition-all"
+              className="flex items-center space-x-2 px-4 py-2 text-sm font-medium bg-white border-2 border-[#E76F51] text-[#E76F51] hover:bg-[#E76F51] hover:text-white rounded-lg transition-all duration-200"
             >
               <span>🔄</span>
               <span>Regenerar slides</span>
             </button>
             <button
               onClick={handleCopy}
-              className={`flex items-center space-x-2 px-4 py-2 text-sm font-medium rounded-lg transition-all ${
+              className={`flex items-center space-x-2 px-4 py-2 text-sm font-medium rounded-lg transition-all duration-200 ${
                 copied
-                  ? 'bg-[#2A9D8F] text-white'
-                  : 'bg-[#E76F51] text-white hover:bg-[#d45a3a]'
+                  ? 'bg-[#2A9D8F] bg-opacity-20 text-[#2A9D8F] border-2 border-[#2A9D8F]'
+                  : 'bg-[#E76F51] text-white hover:bg-[#d45a3a] hover:scale-105 shadow-md'
               }`}
             >
               {copied ? (
@@ -86,7 +86,7 @@ export default function PlatformOutput({
           {content.slides.map((slide: any, index: number) => (
             <div
               key={index}
-              className="border-2 border-gray-200 rounded-lg p-4 hover:border-[#2A9D8F] transition-colors"
+              className="border-2 border-gray-200 rounded-lg p-4 hover:border-[#2A9D8F] hover:shadow-md transition-all duration-200 bg-white"
             >
               <div className="flex items-center justify-between mb-2">
                 <span className="text-sm font-semibold text-[#2A9D8F]">
@@ -103,7 +103,7 @@ export default function PlatformOutput({
                   newSlides[index] = { ...newSlides[index], text: e.target.value };
                   onContentEdit(JSON.stringify(newSlides));
                 }}
-                className="w-full p-3 border border-gray-200 rounded-lg focus:border-[#2A9D8F] focus:outline-none text-[#264653] resize-none"
+                className="w-full p-3 border-2 border-gray-200 rounded-lg focus:border-[#2A9D8F] focus:ring-2 focus:ring-[#2A9D8F] focus:ring-opacity-20 focus:outline-none text-[#264653] resize-none transition-all duration-200"
                 rows={2}
               />
               {slide.visual && (
@@ -129,17 +129,17 @@ export default function PlatformOutput({
           <div className="flex items-center space-x-2">
             <button
               onClick={onAdjustClick}
-              className="flex items-center space-x-2 px-4 py-2 text-sm font-medium text-[#2A9D8F] hover:bg-[#2A9D8F] hover:bg-opacity-10 rounded-lg transition-all"
+              className="flex items-center space-x-2 px-4 py-2 text-sm font-medium bg-white border-2 border-[#E76F51] text-[#E76F51] hover:bg-[#E76F51] hover:text-white rounded-lg transition-all duration-200"
             >
               <span>🔄</span>
               <span>Regenerar con ajustes</span>
             </button>
             <button
               onClick={handleCopy}
-              className={`flex items-center space-x-2 px-4 py-2 text-sm font-medium rounded-lg transition-all ${
+              className={`flex items-center space-x-2 px-4 py-2 text-sm font-medium rounded-lg transition-all duration-200 ${
                 copied
-                  ? 'bg-[#2A9D8F] text-white'
-                  : 'bg-[#E76F51] text-white hover:bg-[#d45a3a]'
+                  ? 'bg-[#2A9D8F] bg-opacity-20 text-[#2A9D8F] border-2 border-[#2A9D8F]'
+                  : 'bg-[#E76F51] text-white hover:bg-[#d45a3a] hover:scale-105 shadow-md'
               }`}
             >
               {copied ? (
@@ -191,17 +191,17 @@ export default function PlatformOutput({
           <div className="flex items-center space-x-2">
             <button
               onClick={onAdjustClick}
-              className="flex items-center space-x-2 px-4 py-2 text-sm font-medium text-[#2A9D8F] hover:bg-[#2A9D8F] hover:bg-opacity-10 rounded-lg transition-all"
+              className="flex items-center space-x-2 px-4 py-2 text-sm font-medium bg-white border-2 border-[#E76F51] text-[#E76F51] hover:bg-[#E76F51] hover:text-white rounded-lg transition-all duration-200"
             >
               <span>🔄</span>
               <span>Regenerar con ajustes</span>
             </button>
             <button
               onClick={handleCopy}
-              className={`flex items-center space-x-2 px-4 py-2 text-sm font-medium rounded-lg transition-all ${
+              className={`flex items-center space-x-2 px-4 py-2 text-sm font-medium rounded-lg transition-all duration-200 ${
                 copied
-                  ? 'bg-[#2A9D8F] text-white'
-                  : 'bg-[#E76F51] text-white hover:bg-[#d45a3a]'
+                  ? 'bg-[#2A9D8F] bg-opacity-20 text-[#2A9D8F] border-2 border-[#2A9D8F]'
+                  : 'bg-[#E76F51] text-white hover:bg-[#d45a3a] hover:scale-105 shadow-md'
               }`}
             >
               {copied ? (
@@ -231,7 +231,7 @@ export default function PlatformOutput({
                 setEditedText(e.target.value);
                 onContentEdit(e.target.value);
               }}
-              className="w-full h-64 p-4 border-2 border-gray-200 rounded-lg focus:border-[#2A9D8F] focus:outline-none text-[#264653] resize-none"
+              className="w-full h-64 p-4 border-2 border-gray-200 rounded-lg focus:border-[#2A9D8F] focus:ring-2 focus:ring-[#2A9D8F] focus:ring-opacity-20 focus:outline-none text-[#264653] resize-none transition-all duration-200"
             />
             <div className="mt-2 text-sm text-gray-500">
               {charCount} caracteres • {wordCount} palabras
@@ -303,7 +303,7 @@ export default function PlatformOutput({
           setEditedText(e.target.value);
           onContentEdit(e.target.value);
         }}
-        className="w-full min-h-[300px] p-4 border-2 border-gray-200 rounded-lg focus:border-[#2A9D8F] focus:outline-none text-[#264653] resize-none"
+        className="w-full min-h-[300px] p-4 border-2 border-gray-200 rounded-lg focus:border-[#2A9D8F] focus:ring-2 focus:ring-[#2A9D8F] focus:ring-opacity-20 focus:outline-none text-[#264653] resize-none transition-all duration-200"
       />
 
       <div className="mt-2 flex items-center justify-between text-sm text-gray-500">

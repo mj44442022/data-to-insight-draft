@@ -100,7 +100,7 @@ export default function AdjustmentModal({
               value={instructions}
               onChange={(e) => setInstructions(e.target.value)}
               placeholder="Ej: hazlo más corto, cambia el tono a más personal, enfócate en los beneficios"
-              className="w-full h-32 p-4 border-2 border-gray-200 rounded-lg focus:border-[#2A9D8F] focus:outline-none text-[#264653] resize-none"
+              className="w-full h-32 p-4 border-2 border-gray-200 rounded-lg focus:border-[#2A9D8F] focus:ring-2 focus:ring-[#2A9D8F] focus:ring-opacity-20 focus:outline-none text-[#264653] resize-none transition-all duration-200"
             />
             <p className="mt-2 text-xs text-gray-500">
               Sé específico sobre lo que quieres cambiar. El sistema mantendrá el resto del contenido similar.
@@ -126,7 +126,7 @@ export default function AdjustmentModal({
                 <button
                   key={suggestion}
                   onClick={() => setInstructions(suggestion)}
-                  className="px-3 py-1 text-sm bg-gray-100 hover:bg-[#2A9D8F] hover:text-white text-gray-700 rounded-full transition-colors"
+                  className="px-3 py-1 text-sm bg-gray-100 hover:bg-[#2A9D8F] hover:text-white text-gray-700 rounded-full transition-all duration-200"
                 >
                   {suggestion}
                 </button>
@@ -146,10 +146,10 @@ export default function AdjustmentModal({
           <button
             onClick={handleRegenerate}
             disabled={!instructions.trim() || isRegenerating}
-            className={`px-6 py-2 text-sm font-medium rounded-lg transition-all ${
+            className={`px-6 py-2 text-sm font-medium rounded-lg transition-all duration-200 ${
               !instructions.trim() || isRegenerating
                 ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
-                : 'bg-[#E76F51] text-white hover:bg-[#d45a3a] shadow-md hover:shadow-lg'
+                : 'bg-[#E76F51] text-white hover:bg-[#d45a3a] hover:scale-105 shadow-md hover:shadow-xl'
             }`}
           >
             {isRegenerating ? (
