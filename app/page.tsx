@@ -9,16 +9,24 @@ export default function Home() {
           <div className="font-display text-2xl font-bold bg-gradient-warm bg-clip-text text-transparent">
             ContentOS
           </div>
-          <Link
-            href="/create"
-            className="group relative inline-flex items-center gap-2"
-          >
-            <div className="absolute inset-0 bg-gradient-warm rounded-lg blur-lg opacity-60 group-hover:opacity-100 transition-opacity"></div>
-            <div className="relative bg-gradient-warm text-navy-900 font-bold px-6 py-3 rounded-lg transition-all transform group-hover:scale-105 shadow-lg">
-              Create Content
-              <span className="ml-2">→</span>
-            </div>
-          </Link>
+          <div className="flex items-center gap-4">
+            <Link
+              href="/content-generator"
+              className="text-cream hover:text-white transition-colors font-medium"
+            >
+              Multi-Platform Generator
+            </Link>
+            <Link
+              href="/create"
+              className="group relative inline-flex items-center gap-2"
+            >
+              <div className="absolute inset-0 bg-gradient-warm rounded-lg blur-lg opacity-60 group-hover:opacity-100 transition-opacity"></div>
+              <div className="relative bg-gradient-warm text-navy-900 font-bold px-6 py-3 rounded-lg transition-all transform group-hover:scale-105 shadow-lg">
+                Create Carousel
+                <span className="ml-2">→</span>
+              </div>
+            </Link>
+          </div>
         </div>
       </header>
 
