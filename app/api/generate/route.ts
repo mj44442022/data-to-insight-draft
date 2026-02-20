@@ -1,7 +1,15 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { put } from '@vercel/blob';
 import { generateContentPlan } from '@/lib/gemini';
 import { createCarouselSlide, createReelFrame, normalizeImage } from '@/lib/image-processor';
 import { createReelVideo, createCarouselZip } from '@/lib/video-creator';
+import { analyzeBrandVisuals, generateCarouselImages } from '@/lib/imagen-generator';
+import {
+  AIGenerationError,
+  FontLoadError,
+  ImageProcessingError,
+  ValidationError
+} from '@/lib/errors';
 
 export const maxDuration = 300; // 5 minutes timeout for Vercel
 
@@ -68,10 +76,24 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    if (!contentPillar || !['Heard', 'Helpful', 'Humor', 'Happenings', 'Mixed'].includes(contentPillar)) {
-      console.error('[GENERATE] Invalid content pillar:', contentPillar);
+    const validPillars = [
+      'Pillar 1: Vulnerability Architect',
+      'Pillar 2: Polarizing Truth-Teller',
+      'Pillar 3: AI-Powered Clarity Machine',
+      'Pillar 4: Research-Driven Experimenter',
+      'Pillar 5: Integrated Expert System'
+    ];
+
+    if (!contentPillar || !validPillars.includes(contentPillar)) {
+      console.error('[GENERATE] ❌ VALIDATION ERROR: Invalid content pillar');
+      console.error('[GENERATE] 📝 Received:', contentPillar);
+      console.error('[GENERATE] ✅ Valid options:', validPillars.join(', '));
       return NextResponse.json(
-        { error: 'Valid content pillar is required', details: `Received: ${contentPillar}` },
+        {
+          error: 'Invalid ARCS content pillar',
+          received: contentPillar,
+          validOptions: validPillars
+        },
         { status: 400 }
       );
     }
@@ -119,7 +141,7 @@ export async function POST(request: NextRequest) {
     console.log('[GENERATE] All validations passed, processing images...');
 
     // Convert images to buffers with error handling
-    let imageBuffers;
+    let imageBuffers: Buffer[];
     try {
       imageBuffers = await Promise.all(
         imageFiles.map(async (file, index) => {
@@ -145,7 +167,23 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    console.log('[GENERATE] Step 1/5: Generating content plan with Gemini AI...');
+    // 🎨 BRAND ANALYSIS: Extract visual DNA from uploaded photos
+    console.log('[GENERATE] Step 1/7: Analyzing brand visuals from uploaded photos...');
+    let brandAnalysis;
+    try {
+      brandAnalysis = await analyzeBrandVisuals(imageBuffers);
+      console.log('[GENERATE] ✅ Brand DNA extracted:', {
+        colors: brandAnalysis.colorPalette.slice(0, 3).join(', '),
+        style: brandAnalysis.visualStyle,
+        keywords: brandAnalysis.brandKeywords.join(', ')
+      });
+    } catch (error) {
+      console.warn('[GENERATE] Brand analysis failed, continuing with uploaded images:', error);
+      // Non-fatal: Continue with uploaded images if brand analysis fails
+      brandAnalysis = null;
+    }
+
+    console.log('[GENERATE] Step 2/7: Generating content plan with Gemini AI...');
 
     // Generate content plan using Gemini with error handling
     let contentPlan;
@@ -160,6 +198,37 @@ export async function POST(request: NextRequest) {
       console.log('[GENERATE] Content plan generated successfully');
     } catch (error) {
       console.error('[GENERATE] Gemini API failed:', error);
+
+      // Handle ValidationError (user/config issues)
+      if (error instanceof ValidationError) {
+        return NextResponse.json(
+          {
+            error: 'AI content validation failed',
+            details: error.message,
+            field: error.field,
+            step: 'AI Content Generation',
+          },
+          { status: 500 } // Keep 500 since it's an AI output issue, not user input
+        );
+      }
+
+      // Handle AIGenerationError (API/network issues)
+      if (error instanceof AIGenerationError) {
+        return NextResponse.json(
+          {
+            error: 'Failed to generate content with AI',
+            details: error.message,
+            isRetryable: error.isRetryable,
+            step: 'AI Content Generation',
+            suggestion: error.isRetryable
+              ? 'Please try again in a few moments. The AI service may be experiencing high load.'
+              : 'Please check your API key and configuration.',
+          },
+          { status: 500 }
+        );
+      }
+
+      // Generic error fallback
       return NextResponse.json(
         {
           error: 'Failed to generate content with AI',
@@ -170,30 +239,137 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    console.log('[GENERATE] Step 2/5: Creating carousel slides...');
+    // 🖼️ AI IMAGE GENERATION: Generate brand-consistent images with Imagen 3
+    console.log('[GENERATE] Step 3/7: Generating AI images with Imagen 3...');
+    let aiGeneratedImages: (Buffer | null)[] | null = null;
+    const originalImages = [...imageBuffers]; // BACKUP: Keep uploaded images for fallback
+    let imageGenError: string | null = null;
 
-    // Generate carousel slides with error handling
-    let carouselSlides;
-    try {
-      carouselSlides = await Promise.all(
-        contentPlan.carousel.map(async (slide, index) => {
-          try {
-            const imageIndex = slide.imageIndex % imageBuffers.length;
-            console.log(`[GENERATE] Creating carousel slide ${index + 1}/10`);
-            return createCarouselSlide(
-              imageBuffers[imageIndex],
-              slide.text,
-              slide.slideNumber
-            );
-          } catch (error) {
-            console.error(`[GENERATE] Failed to create slide ${index + 1}:`, error);
-            throw new Error(`Failed to create slide ${index + 1}: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    if (brandAnalysis) {
+      try {
+        console.log('[GENERATE] 🎯 Starting AI image generation with brand DNA...');
+        const slideTexts = contentPlan.carousel.map(slide => slide.text);
+        aiGeneratedImages = await generateCarouselImages(
+          brandAnalysis,
+          slideTexts,
+          description
+        );
+
+        if (aiGeneratedImages) {
+          // 🛡️ SMART FALLBACK: Mix AI-generated and uploaded images
+          // If some AI images are null, use uploaded images as fallback
+          imageBuffers = aiGeneratedImages.map((aiImage, index) => {
+            if (aiImage) {
+              return aiImage; // Use AI-generated image
+            } else {
+              // Fallback to uploaded image (cycle through if needed)
+              const fallbackIndex = index % originalImages.length;
+              console.log(`[GENERATE] Using uploaded image ${fallbackIndex} for slide ${index + 1} (AI generation failed)`);
+              return originalImages[fallbackIndex];
+            }
+          });
+
+          const aiCount = aiGeneratedImages.filter(img => img !== null).length;
+          const uploadCount = 10 - aiCount;
+
+          if (aiCount === 10) {
+            console.log('[GENERATE] ✅ 100% AI-generated images (10/10)');
+          } else {
+            console.log(`[GENERATE] ✅ Hybrid mode: ${aiCount} AI-generated + ${uploadCount} uploaded images`);
           }
-        })
-      );
+        } else {
+          const fallbackMsg = 'AI generation returned null - using uploaded images';
+          console.warn('[GENERATE] ⚠️', fallbackMsg);
+          console.warn('[GENERATE] 💡 Check logs above for detailed error messages');
+          imageGenError = fallbackMsg;
+        }
+      } catch (error) {
+        const errorMsg = error instanceof Error ? error.message : 'Unknown error';
+        console.error('[GENERATE] ❌ AI image generation failed:', errorMsg);
+        console.error('[GENERATE] 🔄 Using uploaded images as fallback');
+        if (error instanceof Error && error.stack) {
+          console.error('[GENERATE] 📚 Full error:', error.stack);
+        }
+        imageGenError = errorMsg;
+        // Non-fatal: imageBuffers still contains original uploaded images
+      }
+    } else {
+      console.log('[GENERATE] Skipping AI image generation (brand analysis unavailable)');
+      imageGenError = 'Brand analysis unavailable';
+    }
+
+    console.log('[GENERATE] Step 4/7: Creating carousel slides...');
+
+    // Validate and fix image distribution for carousel
+    const carouselImageIndices = contentPlan.carousel.map(s => s.imageIndex);
+    const uniqueCarouselImages = new Set(carouselImageIndices).size;
+
+    if (uniqueCarouselImages < Math.min(3, imageBuffers.length)) {
+      console.log('[GENERATE] ⚠️ Poor image distribution detected, redistributing...');
+      contentPlan.carousel.forEach((slide, index) => {
+        slide.imageIndex = index % imageBuffers.length;
+      });
+      console.log('[GENERATE] ✅ Images redistributed for variety');
+    }
+
+    // Generate carousel slides with SEQUENTIAL processing (prevents memory overload)
+    const carouselSlides: Buffer[] = [];
+    try {
+      console.log('[GENERATE] Starting sequential slide generation (Memory Optimization)...');
+
+      for (let i = 0; i < contentPlan.carousel.length; i++) {
+        const slide = contentPlan.carousel[i];
+        const imageIndex = slide.imageIndex % imageBuffers.length;
+
+        try {
+          // Process ONE slide at a time to save memory
+          const slideBuffer = await createCarouselSlide(
+            imageBuffers[imageIndex],
+            slide.text,
+            slide.slideNumber
+          );
+          carouselSlides.push(slideBuffer);
+
+          // Progress log
+          console.log(`[GENERATE] ✅ Slide ${i + 1}/10 ready`);
+        } catch (error) {
+          console.error(`[GENERATE] Failed slide ${i + 1}`, error);
+          throw error;
+        }
+      }
+
       console.log('[GENERATE] All carousel slides created');
     } catch (error) {
       console.error('[GENERATE] Carousel slide creation failed:', error);
+
+      // Handle FontLoadError
+      if (error instanceof FontLoadError) {
+        return NextResponse.json(
+          {
+            error: 'Font loading error',
+            details: error.message,
+            fontPath: error.fontPath,
+            step: 'Carousel Creation',
+            suggestion: 'Please ensure the font file exists in the public/fonts/ directory.',
+          },
+          { status: 500 }
+        );
+      }
+
+      // Handle ImageProcessingError
+      if (error instanceof ImageProcessingError) {
+        return NextResponse.json(
+          {
+            error: 'Failed to create carousel slides',
+            details: error.message,
+            slideNumber: error.slideNumber,
+            step: 'Carousel Creation',
+          },
+          { status: 500 }
+        );
+      }
+
+      // Generic error fallback
       return NextResponse.json(
         {
           error: 'Failed to create carousel slides',
@@ -204,13 +380,13 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    console.log('[GENERATE] Step 3/5: Creating carousel ZIP file...');
+    console.log('[GENERATE] Step 5/7: Creating carousel ZIP file...');
 
     // Create carousel ZIP with error handling
-    let carouselZip;
+    let carouselZip: Buffer;
     try {
       carouselZip = await createCarouselZip(carouselSlides);
-      console.log('[GENERATE] Carousel ZIP created');
+      console.log(`[GENERATE] Carousel ZIP created (${(carouselZip.length / 1024 / 1024).toFixed(2)}MB)`);
     } catch (error) {
       console.error('[GENERATE] ZIP creation failed:', error);
       return NextResponse.json(
@@ -223,75 +399,205 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    console.log('[GENERATE] Step 4/5: Creating reel frames...');
+    // 🎯 STRATEGIC PIVOT: Skip reel frame/video generation - focus on carousel + script only
+    // console.log('[GENERATE] Step 6/7: Creating reel frames...');
+    // Validate and fix image distribution for reel
+    const reelImageIndices = contentPlan.reel.map(s => s.imageIndex);
+    const uniqueReelImages = new Set(reelImageIndices).size;
 
+    if (uniqueReelImages < Math.min(2, imageBuffers.length)) {
+      console.log('[GENERATE] ⚠️ Poor reel image distribution detected, redistributing...');
+      contentPlan.reel.forEach((scene, index) => {
+        scene.imageIndex = index % imageBuffers.length;
+      });
+      console.log('[GENERATE] ✅ Reel images redistributed for script visual notes');
+    }
+
+    // 🎯 REEL FRAMES GENERATION DISABLED - Not needed for script-only approach
     // Generate reel frames with error handling
-    let reelFrames;
-    try {
-      reelFrames = await Promise.all(
-        contentPlan.reel.map(async (scene, index) => {
-          try {
-            const imageIndex = scene.imageIndex % imageBuffers.length;
-            console.log(`[GENERATE] Creating reel frame ${index + 1}/${contentPlan.reel.length}`);
-            return createReelFrame(imageBuffers[imageIndex], scene.text);
-          } catch (error) {
-            console.error(`[GENERATE] Failed to create reel frame ${index + 1}:`, error);
-            throw new Error(`Failed to create reel frame ${index + 1}: ${error instanceof Error ? error.message : 'Unknown error'}`);
-          }
-        })
-      );
-      console.log('[GENERATE] All reel frames created');
-    } catch (error) {
-      console.error('[GENERATE] Reel frame creation failed:', error);
-      return NextResponse.json(
-        {
-          error: 'Failed to create reel frames',
-          details: error instanceof Error ? error.message : 'Unknown error',
-          step: 'Reel Frame Creation',
-        },
-        { status: 500 }
-      );
+    // let reelFrames: Buffer[];
+    // try {
+    //   reelFrames = await Promise.all(
+    //     contentPlan.reel.map(async (scene, index) => {
+    //       try {
+    //         const imageIndex = scene.imageIndex % imageBuffers.length;
+    //         console.log(`[GENERATE] Creating reel frame ${index + 1}/${contentPlan.reel.length} with image ${imageIndex}`);
+    //         return createReelFrame(imageBuffers[imageIndex], scene.text);
+    //       } catch (error) {
+    //         console.error(`[GENERATE] Failed to create reel frame ${index + 1}:`, error);
+    //         throw new Error(`Failed to create reel frame ${index + 1}: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    //       }
+    //     })
+    //   );
+    //   console.log('[GENERATE] All reel frames created');
+    // } catch (error) {
+    //   console.error('[GENERATE] Reel frame creation failed:', error);
+    //   return NextResponse.json(
+    //     {
+    //       error: 'Failed to create reel frames',
+    //       details: error instanceof Error ? error.message : 'Unknown error',
+    //       step: 'Reel Frame Creation',
+    //     },
+    //     { status: 500 }
+    //   );
+    // }
+
+    // 🗑️ GARBAGE COLLECTION: Free image buffers (no longer needed)
+    imageBuffers = null as any;
+    if (global.gc) {
+      global.gc();
+      console.log('[GENERATE] 🗑️ Garbage collection triggered after carousel generation');
     }
 
-    console.log('[GENERATE] Step 5/5: Creating reel video...');
+    console.log('[GENERATE] Step 6/7: Preparing reel script with visual direction notes...');
+    console.log('[GENERATE] ✅ Reel script ready with visual direction notes (frames/video generation disabled)');
 
-    // Create reel video with error handling
-    let reelVideo;
-    try {
-      const reelDurations = contentPlan.reel.map((scene) => scene.duration);
-      reelVideo = await createReelVideo(reelFrames, reelDurations);
-      console.log('[GENERATE] Reel video created');
-    } catch (error) {
-      console.error('[GENERATE] Video creation failed:', error);
-      return NextResponse.json(
-        {
-          error: 'Failed to create reel video',
-          details: error instanceof Error ? error.message : 'Unknown error. Make sure FFmpeg is installed.',
-          step: 'Video Creation',
-        },
-        { status: 500 }
-      );
+    // 🎯 SMART STORAGE: Use Vercel Blob in production, base64 fallback for local dev
+    const hasBlobToken = !!process.env.BLOB_READ_WRITE_TOKEN;
+    console.log(`[GENERATE] Storage mode: ${hasBlobToken ? 'Vercel Blob (production)' : 'Base64 fallback (local dev)'}`);
+
+    let carouselZipUrl: string;
+
+    if (hasBlobToken) {
+      // PRODUCTION: Upload to Vercel Blob
+      console.log('[GENERATE] 🔼 Uploading carousel ZIP to Vercel Blob...');
+      try {
+        const timestamp = Date.now();
+        const blob = await put(`carousels/carousel-${timestamp}.zip`, carouselZip, {
+          access: 'public',
+          contentType: 'application/zip',
+        });
+        carouselZipUrl = blob.url;
+        console.log(`[GENERATE] ✅ Carousel ZIP uploaded to Blob: ${carouselZipUrl}`);
+      } catch (error) {
+        console.error('[GENERATE] Blob upload failed, falling back to base64:', error);
+        // Fallback to base64 if Blob fails
+        carouselZipUrl = `data:application/zip;base64,${carouselZip.toString('base64')}`;
+      }
+    } else {
+      // LOCAL DEVELOPMENT: Use base64 (no Blob token available)
+      console.log('[GENERATE] ⚠️ No Blob token found - using base64 fallback (local development mode)');
+      carouselZipUrl = `data:application/zip;base64,${carouselZip.toString('base64')}`;
+      console.log('[GENERATE] ✅ Carousel ZIP converted to base64 data URL');
     }
+
+    // 🗑️ GARBAGE COLLECTION: Free carousel ZIP buffer
+    carouselZip = null as any;
+    if (global.gc) {
+      global.gc();
+      console.log('[GENERATE] 🗑️ Garbage collection triggered');
+    }
+
+    // 🎯 VIDEO GENERATION DISABLED - Focus on carousel + script only
+    // Upload reel video to Vercel Blob (if it exists)
+    // let reelVideoUrl: string | null = null;
+    // if (reelVideo) {
+    //   console.log('[GENERATE] 🔼 Uploading reel video to Vercel Blob...');
+    //   try {
+    //     const timestamp = Date.now();
+    //     const blob = await put(`reels/reel-${timestamp}.mp4`, reelVideo, {
+    //       access: 'public',
+    //       contentType: 'video/mp4',
+    //     });
+    //     reelVideoUrl = blob.url;
+    //     console.log(`[GENERATE] ✅ Reel video uploaded to: ${reelVideoUrl}`);
+    //   } catch (error) {
+    //     console.error('[GENERATE] Failed to upload reel video to Blob:', error);
+    //     // Don't fail the request, just log the error
+    //     videoError = `Upload failed: ${error instanceof Error ? error.message : 'Unknown error'}`;
+    //   }
+
+    //   // 🗑️ GARBAGE COLLECTION: Free reel video buffer (uploaded to Blob)
+    //   reelVideo = null;
+    //   if (global.gc) {
+    //     global.gc();
+    //     console.log('[GENERATE] 🗑️ Garbage collection triggered after video upload');
+    //   }
+    // }
+
+    const reelVideoUrl: string | null = null; // Video generation disabled
 
     const totalTime = ((Date.now() - startTime) / 1000).toFixed(2);
-    console.log(`[GENERATE] Generation complete in ${totalTime}s`);
+    console.log(`[GENERATE] ✨ Generation complete in ${totalTime}s`);
+    console.log(`[GENERATE] 📦 Storage: ${hasBlobToken ? 'Vercel Blob URL' : 'Base64 data URL'}`);
+    console.log(`[GENERATE] 📊 Response size: ${hasBlobToken ? '~50KB (optimized)' : '~2-5MB (local dev OK)'}`);
 
-    // Return response with files
+    // Return response with URL (Blob in production, base64 data URL in dev)
     return NextResponse.json({
       success: true,
       carousel: {
-        zip: carouselZip.toString('base64'),
-        slides: carouselSlides.map((slide) => slide.toString('base64')),
+        zipUrl: carouselZipUrl, // Blob URL (production) or base64 data URL (local)
+        slides: carouselSlides.map((slide) => slide.toString('base64')), // Keep for preview
       },
       reel: {
-        video: reelVideo.toString('base64'),
+        videoUrl: null, // Video generation disabled - focus on script only
+        script: contentPlan.reel, // Professional teleprompter script with visual notes
+        videoError: 'Video generation disabled - use script for recording', // Explanation
       },
       caption: contentPlan.caption,
       hashtags: contentPlan.hashtags,
       generationTime: totalTime,
+      // 🐛 DEBUG INFO: Error details for troubleshooting
+      debug: {
+        imageGenerationError: imageGenError,
+        aiImagesUsed: aiGeneratedImages ? aiGeneratedImages.filter(img => img !== null).length : 0,
+        uploadedImagesUsed: aiGeneratedImages ? aiGeneratedImages.filter(img => img === null).length : 10,
+        brandAnalysisSuccess: brandAnalysis !== null,
+      }
     });
   } catch (error) {
     console.error('[GENERATE] Unexpected error:', error);
+
+    // Handle custom error types
+    if (error instanceof ValidationError) {
+      return NextResponse.json(
+        {
+          error: 'Validation error',
+          details: error.message,
+          field: error.field,
+        },
+        { status: 400 } // User/config error
+      );
+    }
+
+    if (error instanceof FontLoadError) {
+      return NextResponse.json(
+        {
+          error: 'Font loading error',
+          details: error.message,
+          fontPath: error.fontPath,
+          suggestion: 'Please ensure the font file exists in the public/fonts/ directory.',
+        },
+        { status: 500 }
+      );
+    }
+
+    if (error instanceof ImageProcessingError) {
+      return NextResponse.json(
+        {
+          error: 'Image processing error',
+          details: error.message,
+          slideNumber: error.slideNumber,
+        },
+        { status: 500 }
+      );
+    }
+
+    if (error instanceof AIGenerationError) {
+      return NextResponse.json(
+        {
+          error: 'AI generation error',
+          details: error.message,
+          isRetryable: error.isRetryable,
+          suggestion: error.isRetryable
+            ? 'Please try again in a few moments.'
+            : 'Please check your configuration.',
+        },
+        { status: 500 }
+      );
+    }
+
+    // Generic error fallback
     return NextResponse.json(
       {
         error: 'Failed to generate content',

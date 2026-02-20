@@ -19,7 +19,7 @@ export default function UploadForm({ onGenerate, isGenerating, progress }: Uploa
   const [description, setDescription] = useState('');
   const [keyMessages, setKeyMessages] = useState('');
   const [tone, setTone] = useState('Professional');
-  const [contentPillar, setContentPillar] = useState('Mixed');
+  const [contentPillar, setContentPillar] = useState('Pillar 5: Integrated Expert System');
   const [dragActive, setDragActive] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -84,8 +84,8 @@ export default function UploadForm({ onGenerate, isGenerating, progress }: Uploa
         <div
           className={`border-2 border-dashed rounded-lg p-8 text-center transition-colors ${
             dragActive
-              ? 'border-primary bg-primary/10'
-              : 'border-gray-600 hover:border-gray-500'
+              ? 'border-gold-500 bg-gold-500/10'
+              : 'border-gray-600 hover:border-gold-500/50'
           }`}
           onDragEnter={handleDrag}
           onDragLeave={handleDrag}
@@ -165,7 +165,7 @@ export default function UploadForm({ onGenerate, isGenerating, progress }: Uploa
           value={description}
           onChange={(e) => setDescription(e.target.value)}
           placeholder="We automate Instagram content creation with AI, helping founders save 20+ hours per week..."
-          className="w-full px-4 py-3 bg-gray-800 border border-gray-600 rounded-lg text-white placeholder-gray-500 focus:outline-none focus:border-primary resize-none"
+          className="w-full px-4 py-3 bg-gray-800 border border-gray-600 rounded-lg text-white placeholder-gray-500 focus:outline-none focus:border-gold-500 focus:ring-2 focus:ring-gold-500/20 resize-none transition-all"
           rows={3}
           maxLength={500}
         />
@@ -183,7 +183,7 @@ export default function UploadForm({ onGenerate, isGenerating, progress }: Uploa
           value={keyMessages}
           onChange={(e) => setKeyMessages(e.target.value)}
           placeholder="• 30X faster than manual creation&#10;• Save 20+ hours per week&#10;• Professional quality output&#10;• No design skills needed"
-          className="w-full px-4 py-3 bg-gray-800 border border-gray-600 rounded-lg text-white placeholder-gray-500 focus:outline-none focus:border-primary resize-none"
+          className="w-full px-4 py-3 bg-gray-800 border border-gray-600 rounded-lg text-white placeholder-gray-500 focus:outline-none focus:border-gold-500 focus:ring-2 focus:ring-gold-500/20 resize-none transition-all"
           rows={4}
         />
       </div>
@@ -194,7 +194,7 @@ export default function UploadForm({ onGenerate, isGenerating, progress }: Uploa
         <select
           value={tone}
           onChange={(e) => setTone(e.target.value)}
-          className="w-full px-4 py-3 bg-gray-800 border border-gray-600 rounded-lg text-white focus:outline-none focus:border-primary"
+          className="w-full px-4 py-3 bg-gray-800 border border-gray-600 rounded-lg text-white focus:outline-none focus:border-gold-500 focus:ring-2 focus:ring-gold-500/20 transition-all"
         >
           <option value="Professional">Professional</option>
           <option value="Casual">Casual</option>
@@ -203,28 +203,28 @@ export default function UploadForm({ onGenerate, isGenerating, progress }: Uploa
         </select>
       </div>
 
-      {/* Content Pillar Selector - Shannon's 4 H's Framework */}
+      {/* ARCS Content Pillar Selector */}
       <div>
         <label className="block text-sm font-medium text-gray-200 mb-2">
-          Content Pillar (Shannon's 4 H's Framework)
+          ARCS Content Pillar
         </label>
         <select
           value={contentPillar}
           onChange={(e) => setContentPillar(e.target.value)}
-          className="w-full px-4 py-3 bg-gray-800 border border-gray-600 rounded-lg text-white focus:outline-none focus:border-primary"
+          className="w-full px-4 py-3 bg-gray-800 border border-gray-600 rounded-lg text-white focus:outline-none focus:border-gold-500 focus:ring-2 focus:ring-gold-500/20 transition-all"
         >
-          <option value="Mixed">Mixed - Balanced approach across all pillars</option>
-          <option value="Heard">Heard - Make audience feel seen & validated</option>
-          <option value="Helpful">Helpful - Quick wins & bite-sized tips</option>
-          <option value="Humor">Humor - Relatable situations that get shared</option>
-          <option value="Happenings">Happenings - Behind-the-scenes content</option>
+          <option value="Pillar 5: Integrated Expert System">Pillar 5: Integrated Expert System (All 10 experts + ARCS)</option>
+          <option value="Pillar 1: Vulnerability Architect">Pillar 1: Vulnerability Architect (Dicks + McKinstrie)</option>
+          <option value="Pillar 2: Polarizing Truth-Teller">Pillar 2: Polarizing Truth-Teller (Sellers Reum + Godin)</option>
+          <option value="Pillar 3: AI-Powered Clarity Machine">Pillar 3: AI-Powered Clarity Machine (Guo + Parrish)</option>
+          <option value="Pillar 4: Research-Driven Experimenter">Pillar 4: Research-Driven Experimenter (Bartlett + Ferriss)</option>
         </select>
         <p className="text-xs text-gray-500 mt-2">
-          {contentPillar === 'Heard' && '✨ Inspirational content that creates belonging and emotional connection'}
-          {contentPillar === 'Helpful' && '💡 Mini-tutorials and instant gratification tips (not 10-step guides)'}
-          {contentPillar === 'Humor' && '😄 Relatable moments that make people tag their friends'}
-          {contentPillar === 'Happenings' && '🎬 Day-in-the-life and behind-the-scenes moments'}
-          {contentPillar === 'Mixed' && '🎯 AI will blend all 4 pillars for maximum engagement'}
+          {contentPillar === 'Pillar 1: Vulnerability Architect' && '💔 Five-second transformation moments. Show the messy middle. Make them feel seen.'}
+          {contentPillar === 'Pillar 2: Polarizing Truth-Teller' && '⚡ Be "not for everyone" on purpose. Truth over cleverness. Make inaction uncomfortable.'}
+          {contentPillar === 'Pillar 3: AI-Powered Clarity Machine' && '🎯 One clear idea per post. Mental models. Quick wins they can try today.'}
+          {contentPillar === 'Pillar 4: Research-Driven Experimenter' && '🔬 Test ideas first. Run experiments. Document everything. Become a story scientist.'}
+          {contentPillar === 'Pillar 5: Integrated Expert System' && '🚀 ARCS foundation + all expert methodologies. Research → Story → Polarization → Clarity → Iteration.'}
         </p>
       </div>
 
@@ -232,10 +232,10 @@ export default function UploadForm({ onGenerate, isGenerating, progress }: Uploa
       <button
         type="submit"
         disabled={!isValid}
-        className={`w-full py-4 rounded-lg font-semibold text-lg transition-all ${
+        className={`w-full py-4 rounded-lg font-bold text-lg transition-all shadow-lg ${
           isValid
-            ? 'bg-primary hover:bg-blue-600 text-white'
-            : 'bg-gray-700 text-gray-500 cursor-not-allowed'
+            ? 'bg-gradient-warm hover:scale-105 text-navy-900 shadow-glow-warm'
+            : 'bg-gray-800 text-gray-500 cursor-not-allowed border border-gray-700'
         }`}
       >
         {isGenerating ? 'Generating...' : 'Generate Content'}
@@ -246,7 +246,7 @@ export default function UploadForm({ onGenerate, isGenerating, progress }: Uploa
         <div className="space-y-2">
           <div className="w-full bg-gray-700 rounded-full h-2">
             <div
-              className="bg-primary h-2 rounded-full transition-all duration-300"
+              className="bg-gradient-warm h-2 rounded-full transition-all duration-300 shadow-glow-gold"
               style={{ width: `${progress}%` }}
             />
           </div>

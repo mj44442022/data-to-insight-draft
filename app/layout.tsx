@@ -18,3 +18,5 @@ export default function RootLayout({
     </html>
   );
 }
+
+// Google Fonts are loaded via CSS in globals.css for build compatibility
